@@ -85,5 +85,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'music-player-ec3b9.firebasestorage.app',
     measurementId: 'G-CEDSF09DCY',
   );
-
 }
