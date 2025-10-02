@@ -1,0 +1,60 @@
+name: music_player
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0
+
+  # ----------------------------- PACKAGES ----------------------------- #
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Utility Packages
+  http: ^1.5.0
+  intl: ^0.20.2
+  logger: ^2.6.1
+  url_launcher: ^6.3.2
+
+  # Icons
+  iconsax_flutter: ^1.0.1
+  cupertino_icons: ^1.0.8
+
+  # API Integration
+  firebase_core: ^4.1.1
+  firebase_auth: ^6.1.0
+  cloud_firestore: ^6.0.2
+
+  # State Management
+  get: ^4.7.2
+
+  # ----------------------------- PACKAGES END ----------------------------- #
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+
+ # ----------------------------- ASSETS ----------------------------- #
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/logos/
+    
+  # ----------------------------- FONTS ----------------------------- #
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+    
