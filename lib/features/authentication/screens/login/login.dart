@@ -3,7 +3,7 @@ import 'package:music_player/common/styles/spacing_styles.dart';
 import 'package:music_player/common/widgets/form_divider.dart';
 import 'package:music_player/features/authentication/screens/login/widgets/login_form.dart';
 import 'package:music_player/features/authentication/screens/login/widgets/login_header.dart';
-import 'package:music_player/features/authentication/screens/login/widgets/login_social_buttons.dart';
+import 'package:music_player/common/widgets/social_buttons.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
 
