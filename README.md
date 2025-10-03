@@ -1,4 +1,4 @@
-# frontend
+# Music Player App
 
 A new Flutter project.
 
