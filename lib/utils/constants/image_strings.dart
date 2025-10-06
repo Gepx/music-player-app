@@ -1,6 +1,6 @@
 class FImages {
-  static const String darkAppLogo = "";
-  static const String lightAppLogo = "";
+  static const String darkAppLogo = "assets/images/darkTheme.png";
+  static const String lightAppLogo = "assets/images/lightTheme.png";
 
   static const String google = "assets/logos/google-icon.png";
   static const String facebook = "assets/logos/facebook-icon.png";
