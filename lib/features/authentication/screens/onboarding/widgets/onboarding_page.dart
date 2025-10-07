@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/helpers/helper_functions.dart';
+import 'package:music_player/utils/theme/custom_themes/text_theme.dart';
 
 class OnBoardingPage extends StatelessWidget {
   const OnBoardingPage({
@@ -14,6 +15,8 @@ class OnBoardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = FHelperFunctions.isDarkMode(context);
+
     return Padding(
       padding: const EdgeInsets.all(FSizes.defaultSpace),
       child: Column(
@@ -25,13 +28,19 @@ class OnBoardingPage extends StatelessWidget {
           ),
           Text(
             title,
-            style: Theme.of(context).textTheme.headlineMedium,
+            style:
+                dark
+                    ? FTextTheme.lightTextTheme.headlineMedium
+                    : FTextTheme.darkTextTheme.headlineMedium,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: FSizes.spaceBtwItems),
           Text(
             subTitle,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style:
+                dark
+                    ? FTextTheme.lightTextTheme.bodyMedium
+                    : FTextTheme.darkTextTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
         ],

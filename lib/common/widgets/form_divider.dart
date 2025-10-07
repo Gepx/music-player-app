@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:music_player/utils/helpers/helper_functions.dart';
+import 'package:music_player/utils/theme/custom_themes/text_theme.dart';
 
 class FFormDivider extends StatelessWidget {
   const FFormDivider({super.key, required this.dividerText});
@@ -21,7 +22,13 @@ class FFormDivider extends StatelessWidget {
             endIndent: 5,
           ),
         ),
-        Text(dividerText, style: Theme.of(context).textTheme.labelMedium),
+        Text(
+          dividerText,
+          style:
+              dark
+                  ? FTextTheme.lightTextTheme.labelMedium
+                  : FTextTheme.darkTextTheme.labelMedium,
+        ),
         Flexible(
           child: Divider(
             color: dark ? FColors.darkGrey : FColors.grey,

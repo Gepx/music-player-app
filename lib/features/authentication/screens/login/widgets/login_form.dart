@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
+import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:music_player/utils/helpers/helper_functions.dart';
 
 class FLoginForm extends StatelessWidget {
   const FLoginForm({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final dark = FHelperFunctions.isDarkMode(context);
+
     return Form(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: FSizes.spaceBtwSections),
@@ -40,7 +44,12 @@ class FLoginForm extends StatelessWidget {
                 Row(
                   children: [
                     Checkbox(value: true, onChanged: (value) {}),
-                    const Text(FTexts.rememberMe),
+                    Text(
+                      FTexts.rememberMe,
+                      style: TextStyle(
+                        color: dark ? FColors.white : FColors.black,
+                      ),
+                    ),
                   ],
                 ),
 

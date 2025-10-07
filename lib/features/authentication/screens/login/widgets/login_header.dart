@@ -3,6 +3,7 @@ import 'package:music_player/utils/constants/image_strings.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
 import 'package:music_player/utils/helpers/helper_functions.dart';
+import 'package:music_player/utils/theme/custom_themes/text_theme.dart';
 
 class FLoginHeader extends StatelessWidget {
   const FLoginHeader({super.key});
@@ -15,16 +16,23 @@ class FLoginHeader extends StatelessWidget {
       children: [
         Image(
           height: 150,
+          width: 100,
           image: AssetImage(dark ? FImages.lightAppLogo : FImages.darkAppLogo),
         ),
         Text(
           FTexts.loginTitle,
-          style: Theme.of(context).textTheme.headlineMedium,
+          style:
+              dark
+                  ? FTextTheme.lightTextTheme.headlineMedium
+                  : FTextTheme.darkTextTheme.headlineMedium,
         ),
         const SizedBox(height: FSizes.sm),
         Text(
           FTexts.loginSubTitle,
-          style: Theme.of(context).textTheme.bodyMedium,
+          style:
+              dark
+                  ? FTextTheme.lightTextTheme.bodyMedium
+                  : FTextTheme.darkTextTheme.bodyMedium,
         ),
       ],
     );

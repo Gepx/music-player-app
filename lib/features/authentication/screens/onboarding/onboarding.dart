@@ -6,6 +6,7 @@ import 'package:music_player/features/authentication/screens/onboarding/widgets/
 import 'package:music_player/features/authentication/screens/onboarding/widgets/onboarding_page.dart';
 import 'package:music_player/features/authentication/screens/onboarding/widgets/onboarding_skip.dart';
 import 'package:music_player/utils/constants/image_strings.dart';
+import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
 
 class OnBoardingScreen extends StatelessWidget {
@@ -17,26 +18,29 @@ class OnBoardingScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          PageView(
-            controller: controller.pageController,
-            onPageChanged: controller.updatePageIndicator,
-            children: const <Widget>[
-              OnBoardingPage(
-                image: FImages.onBoardingImage1,
-                title: FTexts.onBoardingTitle1,
-                subTitle: FTexts.onBoardingSubTitle1,
-              ),
-              OnBoardingPage(
-                image: FImages.onBoardingImage2,
-                title: FTexts.onBoardingTitle2,
-                subTitle: FTexts.onBoardingSubTitle2,
-              ),
-              OnBoardingPage(
-                image: FImages.onBoardingImage3,
-                title: FTexts.onBoardingTitle3,
-                subTitle: FTexts.onBoardingSubTitle3,
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.only(top: FSizes.appBarHeight),
+            child: PageView(
+              controller: controller.pageController,
+              onPageChanged: controller.updatePageIndicator,
+              children: const <Widget>[
+                OnBoardingPage(
+                  image: FImages.onBoardingImage1,
+                  title: FTexts.onBoardingTitle1,
+                  subTitle: FTexts.onBoardingSubTitle1,
+                ),
+                OnBoardingPage(
+                  image: FImages.onBoardingImage2,
+                  title: FTexts.onBoardingTitle2,
+                  subTitle: FTexts.onBoardingSubTitle2,
+                ),
+                OnBoardingPage(
+                  image: FImages.onBoardingImage3,
+                  title: FTexts.onBoardingTitle3,
+                  subTitle: FTexts.onBoardingSubTitle3,
+                ),
+              ],
+            ),
           ),
 
           const OnBoardingSkip(),
