@@ -33,8 +33,8 @@ class FFormDivider extends StatelessWidget {
           child: Divider(
             color: dark ? FColors.darkGrey : FColors.grey,
             thickness: 0.5,
-            indent: 60,
-            endIndent: 5,
+            indent: 5,
+            endIndent: 60,
           ),
         ),
       ],

@@ -11,30 +11,34 @@ class FLoginHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = FHelperFunctions.isDarkMode(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Image(
-          height: 150,
-          width: 100,
-          image: AssetImage(dark ? FImages.lightAppLogo : FImages.darkAppLogo),
-        ),
-        Text(
-          FTexts.loginTitle,
-          style:
-              dark
-                  ? FTextTheme.lightTextTheme.headlineMedium
-                  : FTextTheme.darkTextTheme.headlineMedium,
-        ),
-        const SizedBox(height: FSizes.sm),
-        Text(
-          FTexts.loginSubTitle,
-          style:
-              dark
-                  ? FTextTheme.lightTextTheme.bodyMedium
-                  : FTextTheme.darkTextTheme.bodyMedium,
-        ),
-      ],
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Image(
+            height: 150,
+            image: AssetImage(
+              dark ? FImages.lightAppLogo : FImages.darkAppLogo,
+            ),
+          ),
+          Text(
+            FTexts.loginTitle,
+            style:
+                dark
+                    ? FTextTheme.lightTextTheme.headlineMedium
+                    : FTextTheme.darkTextTheme.headlineMedium,
+          ),
+          const SizedBox(height: FSizes.sm),
+          Text(
+            FTexts.loginSubTitle,
+            style:
+                dark
+                    ? FTextTheme.lightTextTheme.bodyMedium
+                    : FTextTheme.darkTextTheme.bodyMedium,
+          ),
+        ],
+      ),
     );
   }
 }
