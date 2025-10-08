@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:music_player/features/authentication/screens/signup/signup.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
 import 'package:music_player/utils/constants/colors.dart';
@@ -76,7 +78,7 @@ class FLoginForm extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () => Get.to(() => const SignupScreen()),
                 child: Text(FTexts.createAccount),
               ),
             ),
