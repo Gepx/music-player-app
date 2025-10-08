@@ -30,6 +30,7 @@ dependencies:
 
   # State Management
   get: ^4.7.2
+  flutter_dotenv: ^6.0.0
 
   # ----------------------------- PACKAGES END ----------------------------- #
 
@@ -47,6 +48,8 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/logos/
+
+    - .env
     
   # ----------------------------- FONTS ----------------------------- #
   fonts:
