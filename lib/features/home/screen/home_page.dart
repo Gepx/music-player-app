@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:music_player/features/home/controllers/home_controller.dart';
 import 'package:music_player/features/home/widget/home_app_bar.dart';
 import 'package:music_player/features/home/widget/home_content.dart';
-import 'package:music_player/features/home/widget/mini_player.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,9 +36,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-
-      // Bottom Mini Player
-      bottomNavigationBar: const MiniPlayer(),
     );
   }
 }

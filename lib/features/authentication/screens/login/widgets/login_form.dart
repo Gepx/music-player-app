@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:music_player/features/authentication/screens/signup/signup.dart';
-import 'package:music_player/features/home/screen/home_page.dart';
+import 'package:music_player/common/navigation/screens/main_navigation.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
 import 'package:music_player/utils/constants/colors.dart';
@@ -70,7 +70,7 @@ class FLoginForm extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Get.offAll(HomePage());
+                  Get.offAll(() => const MainNavigation());
                 },
                 child: Text(FTexts.signIn),
               ),
