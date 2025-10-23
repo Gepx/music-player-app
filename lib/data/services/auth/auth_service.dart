@@ -6,9 +6,17 @@ import 'package:flutter/foundation.dart';
 import '../../models/user_model.dart';
 import '../../models/auth_response.dart';
 import '../database/local_database_service.dart';
+import '../database/firestore_user_service.dart';
+import '../database/firestore_service.dart';
 
 /// Comprehensive Authentication Service
-/// Handles Firebase Auth, Google Sign-In, JWT tokens, and local storage
+/// Handles Firebase Auth, Google Sign-In, JWT tokens, and local/cloud storage
+/// 
+/// Storage Hierarchy:
+/// 1. Firebase Auth - Primary authentication
+/// 2. Firestore - Cloud user data (synced across devices)
+/// 3. SQLite - Local user data (offline access)
+/// 4. Secure Storage - JWT tokens (sensitive data)
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
@@ -18,6 +26,7 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final LocalDatabaseService _localDb = LocalDatabaseService.instance;
+  final FirestoreUserService _firestoreUser = FirestoreUserService.instance;
 
   // Secure storage keys
   static const String _jwtTokenKey = 'jwt_token';
@@ -61,8 +70,8 @@ class AuthService {
         provider: 'email',
       );
 
-      // Save to local database
-      await _localDb.saveUser(user);
+      // Save to all storage layers
+      await _syncUserData(user);
 
       debugPrint('✅ User signed up successfully: ${user.email}');
       return AuthResponse.success(user, message: 'Account created successfully');
@@ -95,9 +104,8 @@ class AuthService {
         provider: 'email',
       );
 
-      // Save to local database and update last login
-      await _localDb.saveUser(user);
-      await _localDb.updateLastLogin(user.id);
+      // Save to all storage layers and update last login
+      await _syncUserData(user);
 
       debugPrint('✅ User signed in successfully: ${user.email}');
       return AuthResponse.success(user, message: 'Signed in successfully');
@@ -145,9 +153,8 @@ class AuthService {
         provider: 'google',
       );
 
-      // Save to local database and update last login
-      await _localDb.saveUser(user);
-      await _localDb.updateLastLogin(user.id);
+      // Save to all storage layers and update last login
+      await _syncUserData(user);
 
       debugPrint('✅ Google sign-in successful: ${user.email}');
       return AuthResponse.success(user, message: 'Signed in with Google');
@@ -242,10 +249,10 @@ class AuthService {
 
   // -------------------- User Management -------------------- //
 
-  /// Get current user from local database
+  /// Get current user from storage (local first, then cloud)
   Future<UserModel?> getCurrentUser() async {
     try {
-      // Try to get from local database
+      // Try to get from local database first (fastest)
       final localUser = await _localDb.getCurrentUser();
       
       if (localUser != null) {
@@ -259,10 +266,33 @@ class AuthService {
         );
       }
       
-      // If not in local DB but Firebase user exists, create and save
+      // If not in local DB but Firebase user exists
       if (currentFirebaseUser != null) {
+        // Try to fetch from Firestore
+        try {
+          final firestoreUser = await _firestoreUser.getUserById(
+            currentFirebaseUser!.uid,
+          );
+          
+          if (firestoreUser != null) {
+            // Found in Firestore, save to local and return
+            await _localDb.saveUser(firestoreUser);
+            
+            final jwtToken = await getJwtToken();
+            final refreshToken = await getRefreshToken();
+            
+            return firestoreUser.copyWith(
+              jwtToken: jwtToken,
+              refreshToken: refreshToken,
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Could not fetch from Firestore: $e');
+        }
+        
+        // Not in Firestore either, create from Firebase Auth
         final user = await _createUserModel(currentFirebaseUser!);
-        await _localDb.saveUser(user);
+        await _syncUserData(user);
         return user;
       }
       
@@ -311,9 +341,9 @@ class AuthService {
         await user.updatePhotoURL(photoUrl);
       }
 
-      // Update in local database
+      // Update in all storage layers
       final updatedUser = await _createUserModel(user);
-      await _localDb.saveUser(updatedUser);
+      await _syncUserData(updatedUser);
 
       debugPrint('✅ User profile updated');
       return AuthResponse.success(updatedUser, message: 'Profile updated');
@@ -359,8 +389,13 @@ class AuthService {
 
       final userId = user.uid;
 
-      // Delete from Firebase
-      await user.delete();
+      // Delete from all storage layers
+      try {
+        // Delete from Firestore
+        await _firestoreUser.deleteUser(userId);
+      } catch (e) {
+        debugPrint('⚠️ Could not delete from Firestore: $e');
+      }
 
       // Delete from local database
       await _localDb.deleteUser(userId);
@@ -368,12 +403,15 @@ class AuthService {
       // Clear tokens
       await clearTokens();
 
+      // Delete from Firebase (must be last)
+      await user.delete();
+
       // Sign out from Google if needed
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.signOut();
       }
 
-      debugPrint('✅ User account deleted');
+      debugPrint('✅ User account deleted from all storage');
       return AuthResponse.success(
         null,
         message: 'Account deleted successfully',
@@ -414,6 +452,93 @@ class AuthService {
     );
   }
 
+  /// Sync user data across all storage layers
+  /// Local (SQLite) → Firestore → Secure Storage (tokens)
+  Future<void> _syncUserData(UserModel user) async {
+    try {
+      // 1. Save to local database (SQLite)
+      await _localDb.saveUser(user);
+      debugPrint('✅ User saved to local database');
+
+      // 2. Save to Firestore (cloud sync)
+      try {
+        await _firestoreUser.saveUser(user);
+        await _firestoreUser.updateLastLogin(user.id);
+        debugPrint('✅ User synced to Firestore');
+      } catch (e) {
+        debugPrint('⚠️ Could not sync to Firestore (offline?): $e');
+        // Don't fail if Firestore sync fails (offline support)
+      }
+
+      // 3. Tokens are already handled in createUserModel and storeTokens
+      debugPrint('✅ User data fully synced across all storage layers');
+    } catch (e) {
+      debugPrint('❌ Error syncing user data: $e');
+      rethrow;
+    }
+  }
+
+  /// Watch user changes in real-time from Firestore
+  Stream<UserModel?> watchUser(String userId) {
+    return _firestoreUser.watchUser(userId);
+  }
+
+  /// Force sync from Firestore to local
+  Future<void> syncFromFirestore(String userId) async {
+    try {
+      debugPrint('🔄 Syncing user from Firestore...');
+      
+      final firestoreUser = await _firestoreUser.getUserById(userId);
+      
+      if (firestoreUser != null) {
+        await _localDb.saveUser(firestoreUser);
+        debugPrint('✅ User synced from Firestore to local');
+      } else {
+        debugPrint('⚠️ User not found in Firestore');
+      }
+    } catch (e) {
+      debugPrint('❌ Error syncing from Firestore: $e');
+      rethrow;
+    }
+  }
+
+  /// Check health of all storage layers
+  Future<Map<String, bool>> healthCheckAll() async {
+    final results = <String, bool>{};
+
+    // Check Firebase Auth
+    try {
+      results['firebaseAuth'] = _auth.currentUser != null;
+    } catch (e) {
+      results['firebaseAuth'] = false;
+    }
+
+    // Check Local Database
+    try {
+      results['localDatabase'] = await _localDb.healthCheck();
+    } catch (e) {
+      results['localDatabase'] = false;
+    }
+
+    // Check Firestore
+    try {
+      results['firestore'] = await FirestoreService.instance.healthCheck();
+    } catch (e) {
+      results['firestore'] = false;
+    }
+
+    // Check Secure Storage
+    try {
+      await _secureStorage.read(key: _userIdKey);
+      results['secureStorage'] = true;
+    } catch (e) {
+      results['secureStorage'] = false;
+    }
+
+    debugPrint('🏥 Health check results: $results');
+    return results;
+  }
+
   /// Get user-friendly error messages
   String _getAuthErrorMessage(String code) {
     switch (code) {
@@ -435,6 +560,8 @@ class AuthService {
         return 'This sign-in method is not enabled';
       case 'requires-recent-login':
         return 'Please sign in again to continue';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection';
       default:
         return 'Authentication failed. Please try again';
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:music_player/features/authentication/screens/onboarding/onboarding.dart';
+import 'package:music_player/features/testing/screens/spotify_api_test_screen.dart';
 import 'package:music_player/utils/theme/theme.dart';
 
 class App extends StatelessWidget {
@@ -14,7 +15,7 @@ class App extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: FAppTheme.lightTheme,
       darkTheme: FAppTheme.darkTheme,
-      home: OnBoardingScreen(),
-    );
+      home: const SpotifyApiTestScreen(),
+    );  
   }
 }
