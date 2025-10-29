@@ -4,12 +4,17 @@ import 'package:music_player/common/widgets/subwidget/bottom_navigation/navigati
 class NavigationItems {
   static const List<NavigationItemData> items = [
     NavigationItemData(icon: Iconsax.home, label: 'Home', index: 0),
-    NavigationItemData(icon: Iconsax.radio, label: 'Radio', index: 1),
+    NavigationItemData(icon: Iconsax.search_normal, label: 'Search', index: 1),
     NavigationItemData(
       icon: Iconsax.music_library_2,
       label: 'Library',
       index: 2,
     ),
-    NavigationItemData(icon: Iconsax.search_normal, label: 'Search', index: 3),
+    NavigationItemData(icon: Iconsax.crown, label: 'Premium', index: 3),
+    NavigationItemData(
+      icon: Iconsax.profile_circle,
+      label: 'Profile',
+      index: 4,
+    ),
   ];
 }

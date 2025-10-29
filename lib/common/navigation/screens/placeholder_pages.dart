@@ -42,8 +42,8 @@ class LibraryPage extends StatelessWidget {
   }
 }
 
-class SearchPage extends StatelessWidget {
-  const SearchPage({super.key});
+class PremiumPage extends StatelessWidget {
+  const PremiumPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +51,28 @@ class SearchPage extends StatelessWidget {
       backgroundColor: Color(0xFF000000),
       body: Center(
         child: Text(
-          'Search Page',
+          'Premium Page',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF000000),
+      body: Center(
+        child: Text(
+          'Profile Page',
           style: TextStyle(
             color: Colors.white,
             fontSize: 24,

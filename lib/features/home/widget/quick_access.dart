@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:music_player/utils/constants/colors.dart';
 
 class QuickAccessGrid extends StatelessWidget {
   const QuickAccessGrid({super.key});
@@ -7,21 +8,17 @@ class QuickAccessGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final quickAccess = [
+      {'title': 'Songs', 'icon': Iconsax.music, 'color': FColors.primary},
+      {'title': 'Artists', 'icon': Iconsax.user, 'color': FColors.secondary},
       {
-        'title': 'Songs',
-        'icon': Iconsax.music,
-        'color': const Color(0xFF8B5CF6),
+        'title': 'Albums',
+        'icon': Iconsax.cd,
+        'color': FColors.secondary.withOpacity(0.8),
       },
-      {
-        'title': 'Artists',
-        'icon': Iconsax.user,
-        'color': const Color(0xFF7C3AED),
-      },
-      {'title': 'Albums', 'icon': Iconsax.cd, 'color': const Color(0xFF6D28D9)},
       {
         'title': 'Playlists',
         'icon': Iconsax.music_playlist,
-        'color': const Color(0xFF5B21B6),
+        'color': FColors.primary.withOpacity(0.7),
       },
     ];
 
@@ -41,7 +38,7 @@ class QuickAccessGrid extends StatelessWidget {
           onTap: () {},
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1a1a1a),
+              color: FColors.darkContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -55,7 +52,7 @@ class QuickAccessGrid extends StatelessWidget {
                   ),
                   child: Icon(
                     item['icon'] as IconData,
-                    color: Colors.white,
+                    color: FColors.textWhite,
                     size: 24,
                   ),
                 ),
@@ -63,7 +60,7 @@ class QuickAccessGrid extends StatelessWidget {
                 Text(
                   item['title'] as String,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: FColors.textWhite,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     fontFamily: 'Poppins',

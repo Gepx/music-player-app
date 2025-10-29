@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:music_player/features/home/widget/subwidget/mini_player/controls.dart';
 import 'package:music_player/features/home/widget/subwidget/mini_player/songinfo.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:music_player/utils/constants/colors.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -11,8 +12,8 @@ class MiniPlayer extends StatelessWidget {
     return Container(
       height: 80,
       decoration: const BoxDecoration(
-        color: Color(0xFF1a1a1a),
-        border: Border(top: BorderSide(color: Color(0xFF2a2a2a), width: 0.5)),
+        color: FColors.darkContainer,
+        border: Border(top: BorderSide(color: FColors.darkerGrey, width: 0.5)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -26,12 +27,12 @@ class MiniPlayer extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                  colors: [FColors.primary, FColors.secondary],
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Center(
-                child: Icon(Iconsax.music, color: Colors.white, size: 24),
+                child: Icon(Iconsax.music, color: FColors.textWhite, size: 24),
               ),
             ),
             const SizedBox(width: 12),
