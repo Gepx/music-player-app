@@ -14,7 +14,7 @@ class App extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: FAppTheme.lightTheme,
       darkTheme: FAppTheme.darkTheme,
-      home: OnBoardingScreen(),
+      home: const OnBoardingScreen(),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:music_player/features/home/controllers/home_app_bar_controller.dart';
+import 'package:music_player/utils/constants/colors.dart';
 
 class HomeAppBar extends StatelessWidget {
   const HomeAppBar({super.key, required this.showAppBar});
@@ -16,7 +17,7 @@ class HomeAppBar extends StatelessWidget {
       expandedHeight: 120.0,
       floating: false,
       pinned: true,
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: FColors.black,
       elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         title:
@@ -24,7 +25,7 @@ class HomeAppBar extends StatelessWidget {
                 ? const Text(
                   'Music',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: FColors.textWhite,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Poppins',
@@ -36,7 +37,7 @@ class HomeAppBar extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF1a0033), Color(0xFF000000)],
+              colors: [FColors.primaryBackground, FColors.black],
             ),
           ),
           child: SafeArea(
@@ -52,7 +53,7 @@ class HomeAppBar extends StatelessWidget {
                       Text(
                         controller.getGreeting(),
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: FColors.textWhite,
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Poppins',
@@ -64,7 +65,7 @@ class HomeAppBar extends StatelessWidget {
                             onPressed: controller.onNotificationTap,
                             icon: const Icon(
                               Iconsax.notification,
-                              color: Colors.white,
+                              color: FColors.textWhite,
                               size: 24,
                             ),
                           ),
@@ -72,7 +73,7 @@ class HomeAppBar extends StatelessWidget {
                             onPressed: controller.onSettingsTap,
                             icon: const Icon(
                               Iconsax.setting_2,
-                              color: Colors.white,
+                              color: FColors.textWhite,
                               size: 24,
                             ),
                           ),

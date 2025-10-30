@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 class BrowseList extends StatelessWidget {
@@ -19,7 +20,7 @@ class BrowseList extends StatelessWidget {
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1a1a1a),
+                color: FColors.darkContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ListTile(
@@ -30,7 +31,7 @@ class BrowseList extends StatelessWidget {
                 title: Text(
                   item['title'] as String,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: FColors.textWhite,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Poppins',
@@ -39,14 +40,14 @@ class BrowseList extends StatelessWidget {
                 subtitle: Text(
                   item['subtitle'] as String,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: FColors.textWhite.withValues(alpha: 0.6),
                     fontSize: 14,
                     fontFamily: 'Poppins',
                   ),
                 ),
                 trailing: const Icon(
                   Iconsax.arrow_right_3,
-                  color: Colors.white,
+                  color: FColors.textWhite,
                   size: 20,
                 ),
                 onTap: () {},

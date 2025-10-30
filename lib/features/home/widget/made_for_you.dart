@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_player/utils/constants/colors.dart';
 
 class MadeForYouList extends StatelessWidget {
   const MadeForYouList({super.key});
@@ -23,7 +24,7 @@ class MadeForYouList extends StatelessWidget {
             width: 160,
             margin: const EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1a1a1a),
+              color: FColors.darkContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -35,10 +36,7 @@ class MadeForYouList extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFF8B5CF6),
-                        const Color(0xFF7C3AED),
-                      ],
+                      colors: [FColors.primary, FColors.secondary],
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(12),
@@ -60,7 +58,7 @@ class MadeForYouList extends StatelessWidget {
                       Text(
                         item['title'] as String,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: FColors.textWhite,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Poppins',
@@ -70,7 +68,7 @@ class MadeForYouList extends StatelessWidget {
                       Text(
                         item['subtitle'] as String,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: FColors.textWhite.withValues(alpha: 0.6),
                           fontSize: 12,
                           fontFamily: 'Poppins',
                         ),

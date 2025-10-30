@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:music_player/features/home/screen/home_page.dart';
+import 'package:music_player/features/search/search_page.dart';
 import 'package:music_player/common/navigation/screens/placeholder_pages.dart';
 
 class NavigationController extends GetxController {
@@ -11,9 +12,10 @@ class NavigationController extends GetxController {
   // Navigation pages
   final List<Widget> pages = [
     const HomePage(),
-    const RadioPage(),
-    const LibraryPage(),
     const SearchPage(),
+    const LibraryPage(),
+    const PremiumPage(),
+    const ProfilePage(),
   ];
 
   void changePage(int index) {
