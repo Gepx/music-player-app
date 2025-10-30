@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_player/utils/constants/colors.dart';
 
 class FSongInfo extends StatelessWidget {
   const FSongInfo({super.key});
@@ -13,7 +14,7 @@ class FSongInfo extends StatelessWidget {
           const Text(
             'Now Playing',
             style: TextStyle(
-              color: Colors.white,
+              color: FColors.textWhite,
               fontSize: 14,
               fontWeight: FontWeight.w600,
               fontFamily: 'Poppins',
@@ -23,7 +24,7 @@ class FSongInfo extends StatelessWidget {
           Text(
             'Artist Name',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: FColors.textWhite.withValues(alpha: 0.6),
               fontSize: 12,
               fontFamily: 'Poppins',
             ),

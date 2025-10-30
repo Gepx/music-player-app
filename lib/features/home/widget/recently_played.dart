@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_player/utils/constants/colors.dart';
 
 class RecentlyPlayedGrid extends StatelessWidget {
   const RecentlyPlayedGrid({super.key});
@@ -9,22 +10,22 @@ class RecentlyPlayedGrid extends StatelessWidget {
       {
         'title': 'Liked Songs',
         'subtitle': 'Playlist • 47 songs',
-        'color': const Color(0xFF8B5CF6),
+        'color': FColors.primary,
       },
       {
         'title': 'Chill Vibes',
         'subtitle': 'Playlist • 23 songs',
-        'color': const Color(0xFF7C3AED),
+        'color': FColors.secondary,
       },
       {
         'title': 'Workout Mix',
         'subtitle': 'Playlist • 31 songs',
-        'color': const Color(0xFF6D28D9),
+        'color': FColors.secondary.withOpacity(0.8),
       },
       {
         'title': 'Study Focus',
         'subtitle': 'Playlist • 19 songs',
-        'color': const Color(0xFF5B21B6),
+        'color': FColors.primary.withOpacity(0.7),
       },
     ];
 
@@ -61,7 +62,7 @@ class RecentlyPlayedGrid extends StatelessWidget {
                 Text(
                   item['title'] as String,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: FColors.textWhite,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Poppins',
@@ -71,7 +72,7 @@ class RecentlyPlayedGrid extends StatelessWidget {
                 Text(
                   item['subtitle'] as String,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: FColors.textWhite.withValues(alpha: 0.8),
                     fontSize: 12,
                     fontFamily: 'Poppins',
                   ),
