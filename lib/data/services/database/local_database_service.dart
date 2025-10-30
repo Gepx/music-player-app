@@ -28,14 +28,18 @@ class LocalDatabaseService {
     try {
       final dbPath = await getDatabasesPath();
       final path = join(dbPath, _databaseName);
-
+      debugPrint('🗄️ Opening DB at: $path (web: $kIsWeb)');
       debugPrint('📁 Initializing database at: $path');
 
-      return await openDatabase(
+      final factory = databaseFactory;
+
+      return await factory.openDatabase(
         path,
-        version: _databaseVersion,
-        onCreate: _onCreate,
-        onUpgrade: _onUpgrade,
+        options: OpenDatabaseOptions(
+          version: _databaseVersion,
+          onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
+        ),
       );
     } catch (e) {
       debugPrint('❌ Error initializing database: $e');
@@ -165,11 +169,7 @@ class LocalDatabaseService {
   Future<void> deleteUser(String userId) async {
     try {
       final db = await database;
-      await db.delete(
-        _userTable,
-        where: 'id = ?',
-        whereArgs: [userId],
-      );
+      await db.delete(_userTable, where: 'id = ?', whereArgs: [userId]);
       debugPrint('✅ User deleted from local database: $userId');
     } catch (e) {
       debugPrint('❌ Error deleting user: $e');
@@ -211,4 +211,3 @@ class LocalDatabaseService {
     }
   }
 }
-

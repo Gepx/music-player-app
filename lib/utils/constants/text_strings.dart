@@ -73,6 +73,11 @@ class FTexts {
 
   // Validation
   static const String dateOfBirthError = "You must be at least 18 years old.";
+
+  static const String accountCreatedSuccessfully =
+      "Your account successfully created!";
+  static const String errorOccurred = "Something went wrong. Please try again.";
+  static const String signInSuccess = "Signed in successfully!";
 }
 
 extension StringCasingExtension on String {
