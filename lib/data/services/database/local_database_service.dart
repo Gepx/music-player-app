@@ -13,8 +13,18 @@ class LocalDatabaseService {
 
   // Table names
   static const String _userTable = 'users';
+  static const String _tracksTable = 'tracks';
+  static const String _albumsTable = 'albums';
+  static const String _artistsTable = 'artists';
+  static const String _playlistsTable = 'playlists';
+  static const String _playlistTracksTable = 'playlist_tracks';
+  static const String _searchHistoryTable = 'search_history';
+  static const String _recentlyPlayedTable = 'recently_played';
+  static const String _favoritesTable = 'user_favorites';
+  static const String _cacheMetadataTable = 'cache_metadata';
+  
   static const String _databaseName = 'music_player.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;  // Updated version
 
   /// Get database instance (lazy initialization)
   Future<Database> get database async {
@@ -65,13 +75,299 @@ class LocalDatabaseService {
       )
     ''');
 
+    // Cache Metadata table
+    await db.execute('''
+      CREATE TABLE $_cacheMetadataTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cache_key TEXT UNIQUE NOT NULL,
+        cached_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        data_type TEXT NOT NULL,
+        hit_count INTEGER DEFAULT 0
+      )
+    ''');
+
+    // Tracks table
+    await db.execute('''
+      CREATE TABLE $_tracksTable (
+        id TEXT PRIMARY KEY,
+        spotify_id TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        artist_name TEXT,
+        album_id TEXT,
+        album_name TEXT,
+        duration_ms INTEGER,
+        preview_url TEXT,
+        image_url TEXT,
+        popularity INTEGER,
+        explicit INTEGER DEFAULT 0,
+        is_playable INTEGER DEFAULT 1,
+        track_number INTEGER,
+        disc_number INTEGER,
+        added_at INTEGER,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Albums table
+    await db.execute('''
+      CREATE TABLE $_albumsTable (
+        id TEXT PRIMARY KEY,
+        spotify_id TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        artist_name TEXT,
+        release_date TEXT,
+        total_tracks INTEGER,
+        image_url TEXT,
+        album_type TEXT,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Artists table
+    await db.execute('''
+      CREATE TABLE $_artistsTable (
+        id TEXT PRIMARY KEY,
+        spotify_id TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        image_url TEXT,
+        genres TEXT,
+        popularity INTEGER,
+        followers INTEGER,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Playlists table
+    await db.execute('''
+      CREATE TABLE $_playlistsTable (
+        id TEXT PRIMARY KEY,
+        spotify_id TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        owner_id TEXT,
+        owner_name TEXT,
+        image_url TEXT,
+        total_tracks INTEGER,
+        is_public INTEGER DEFAULT 1,
+        is_collaborative INTEGER DEFAULT 0,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Playlist Tracks junction table
+    await db.execute('''
+      CREATE TABLE $_playlistTracksTable (
+        playlist_id TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        position INTEGER,
+        added_at INTEGER,
+        PRIMARY KEY (playlist_id, track_id)
+      )
+    ''');
+
+    // Search History table
+    await db.execute('''
+      CREATE TABLE $_searchHistoryTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        search_type TEXT,
+        results_count INTEGER,
+        searched_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Recently Played table
+    await db.execute('''
+      CREATE TABLE $_recentlyPlayedTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        track_id TEXT NOT NULL,
+        played_at INTEGER NOT NULL,
+        context_type TEXT,
+        context_id TEXT
+      )
+    ''');
+
+    // User Favorites table
+    await db.execute('''
+      CREATE TABLE $_favoritesTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id TEXT NOT NULL,
+        item_type TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        UNIQUE(item_id, item_type)
+      )
+    ''');
+
+    // Create indexes for performance
+    await _createIndexes(db);
+
     debugPrint('✅ Database tables created successfully');
+  }
+
+  /// Create indexes for better query performance
+  Future<void> _createIndexes(Database db) async {
+    debugPrint('📑 Creating indexes...');
+    
+    await db.execute('CREATE INDEX idx_tracks_spotify_id ON $_tracksTable(spotify_id)');
+    await db.execute('CREATE INDEX idx_tracks_artist ON $_tracksTable(artist_name)');
+    await db.execute('CREATE INDEX idx_tracks_album ON $_tracksTable(album_id)');
+    await db.execute('CREATE INDEX idx_tracks_title ON $_tracksTable(title)');
+    
+    await db.execute('CREATE INDEX idx_albums_spotify_id ON $_albumsTable(spotify_id)');
+    await db.execute('CREATE INDEX idx_albums_artist ON $_albumsTable(artist_name)');
+    
+    await db.execute('CREATE INDEX idx_artists_spotify_id ON $_artistsTable(spotify_id)');
+    await db.execute('CREATE INDEX idx_artists_name ON $_artistsTable(name)');
+    
+    await db.execute('CREATE INDEX idx_playlists_spotify_id ON $_playlistsTable(spotify_id)');
+    
+    await db.execute('CREATE INDEX idx_cache_key ON $_cacheMetadataTable(cache_key)');
+    await db.execute('CREATE INDEX idx_cache_type ON $_cacheMetadataTable(data_type)');
+    
+    await db.execute('CREATE INDEX idx_search_query ON $_searchHistoryTable(query)');
+    await db.execute('CREATE INDEX idx_recently_played_at ON $_recentlyPlayedTable(played_at DESC)');
+    
+    debugPrint('✅ Indexes created successfully');
   }
 
   /// Handle database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     debugPrint('⬆️ Upgrading database from version $oldVersion to $newVersion');
-    // Add migration logic here when updating database schema
+    
+    // Migration from version 1 to 2 - Add Spotify caching tables
+    if (oldVersion < 2) {
+      debugPrint('📦 Migrating to version 2: Adding Spotify cache tables...');
+      
+      // Cache Metadata table
+      await db.execute('''
+        CREATE TABLE $_cacheMetadataTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          cache_key TEXT UNIQUE NOT NULL,
+          cached_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL,
+          data_type TEXT NOT NULL,
+          hit_count INTEGER DEFAULT 0
+        )
+      ''');
+
+      // Tracks table
+      await db.execute('''
+        CREATE TABLE $_tracksTable (
+          id TEXT PRIMARY KEY,
+          spotify_id TEXT UNIQUE NOT NULL,
+          title TEXT NOT NULL,
+          artist_name TEXT,
+          album_id TEXT,
+          album_name TEXT,
+          duration_ms INTEGER,
+          preview_url TEXT,
+          image_url TEXT,
+          popularity INTEGER,
+          explicit INTEGER DEFAULT 0,
+          is_playable INTEGER DEFAULT 1,
+          track_number INTEGER,
+          disc_number INTEGER,
+          added_at INTEGER,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+
+      // Albums table
+      await db.execute('''
+        CREATE TABLE $_albumsTable (
+          id TEXT PRIMARY KEY,
+          spotify_id TEXT UNIQUE NOT NULL,
+          title TEXT NOT NULL,
+          artist_name TEXT,
+          release_date TEXT,
+          total_tracks INTEGER,
+          image_url TEXT,
+          album_type TEXT,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+
+      // Artists table
+      await db.execute('''
+        CREATE TABLE $_artistsTable (
+          id TEXT PRIMARY KEY,
+          spotify_id TEXT UNIQUE NOT NULL,
+          name TEXT NOT NULL,
+          image_url TEXT,
+          genres TEXT,
+          popularity INTEGER,
+          followers INTEGER,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+
+      // Playlists table
+      await db.execute('''
+        CREATE TABLE $_playlistsTable (
+          id TEXT PRIMARY KEY,
+          spotify_id TEXT UNIQUE NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          owner_id TEXT,
+          owner_name TEXT,
+          image_url TEXT,
+          total_tracks INTEGER,
+          is_public INTEGER DEFAULT 1,
+          is_collaborative INTEGER DEFAULT 0,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+
+      // Playlist Tracks junction table
+      await db.execute('''
+        CREATE TABLE $_playlistTracksTable (
+          playlist_id TEXT NOT NULL,
+          track_id TEXT NOT NULL,
+          position INTEGER,
+          added_at INTEGER,
+          PRIMARY KEY (playlist_id, track_id)
+        )
+      ''');
+
+      // Search History table
+      await db.execute('''
+        CREATE TABLE $_searchHistoryTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          query TEXT NOT NULL,
+          search_type TEXT,
+          results_count INTEGER,
+          searched_at INTEGER NOT NULL
+        )
+      ''');
+
+      // Recently Played table
+      await db.execute('''
+        CREATE TABLE $_recentlyPlayedTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          track_id TEXT NOT NULL,
+          played_at INTEGER NOT NULL,
+          context_type TEXT,
+          context_id TEXT
+        )
+      ''');
+
+      // User Favorites table
+      await db.execute('''
+        CREATE TABLE $_favoritesTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          item_id TEXT NOT NULL,
+          item_type TEXT NOT NULL,
+          added_at INTEGER NOT NULL,
+          UNIQUE(item_id, item_type)
+        )
+      ''');
+
+      // Create indexes
+      await _createIndexes(db);
+      
+      debugPrint('✅ Migration to version 2 completed');
+    }
   }
 
   // -------------------- User Operations -------------------- //

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:music_player/data/services/services.dart';
 import 'package:music_player/features/authentication/screens/auth_wrapper.dart';
 import 'package:music_player/features/authentication/screens/onboarding/onboarding.dart';
+import 'package:music_player/features/testing/screens/spotify_api_test_screen.dart';
 import 'package:music_player/utils/theme/theme.dart';
 
 class App extends StatefulWidget {
@@ -46,7 +47,7 @@ class _MyAppState extends State<App> {
       themeMode: ThemeMode.system,
       theme: FAppTheme.lightTheme,
       darkTheme: FAppTheme.darkTheme,
-      home: home,
+      home: SpotifyApiTestScreen(),
     );
   }
 }
