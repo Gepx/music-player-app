@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:equatable/equatable.dart';
 
@@ -107,5 +108,47 @@ class ArtistModel extends Equatable {
         followers,
         uri,
       ];
+
+  // -------------------- SQLite Serialization -------------------- //
+
+  /// Convert to SQLite map
+  Map<String, dynamic> toSQLite() {
+    return {
+      'id': id,
+      'spotify_id': spotifyId ?? id,
+      'name': name,
+      'image_url': imageUrl,
+      'genres': jsonEncode(genres), // Store as JSON string
+      'popularity': popularity ?? 0,
+      'followers': followers ?? 0,
+      'cached_at': DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  /// Create from SQLite map
+  factory ArtistModel.fromSQLite(Map<String, dynamic> map) {
+    List<String> parsedGenres = [];
+    if (map['genres'] != null) {
+      try {
+        final decoded = jsonDecode(map['genres'] as String);
+        if (decoded is List) {
+          parsedGenres = decoded.cast<String>();
+        }
+      } catch (e) {
+        // If JSON parsing fails, fallback to empty list
+        parsedGenres = [];
+      }
+    }
+
+    return ArtistModel(
+      id: map['id'] as String,
+      spotifyId: map['spotify_id'] as String?,
+      name: map['name'] as String,
+      imageUrl: map['image_url'] as String?,
+      genres: parsedGenres,
+      popularity: map['popularity'] as int?,
+      followers: map['followers'] as int?,
+    );
+  }
 }
 

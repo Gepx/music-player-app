@@ -177,5 +177,49 @@ class TrackModel extends Equatable {
         explicit,
         uri,
       ];
+
+  // -------------------- SQLite Serialization -------------------- //
+
+  /// Convert to SQLite map
+  Map<String, dynamic> toSQLite() {
+    return {
+      'id': id,
+      'spotify_id': spotifyId ?? id,
+      'title': title,
+      'artist_name': artistName,
+      'album_id': albumId,
+      'album_name': albumName,
+      'duration_ms': durationMs,
+      'preview_url': streamUrl,
+      'image_url': albumArtUrl,
+      'popularity': popularity ?? 0,
+      'explicit': explicit ? 1 : 0,
+      'is_playable': isPlayable ? 1 : 0,
+      'track_number': 1, // Default value
+      'disc_number': 1, // Default value
+      'added_at': addedAt?.millisecondsSinceEpoch,
+      'cached_at': DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  /// Create from SQLite map
+  factory TrackModel.fromSQLite(Map<String, dynamic> map) {
+    return TrackModel(
+      id: map['id'] as String,
+      spotifyId: map['spotify_id'] as String?,
+      title: map['title'] as String,
+      artistName: map['artist_name'] as String? ?? 'Unknown Artist',
+      albumName: map['album_name'] as String? ?? 'Unknown Album',
+      albumId: map['album_id'] as String?,
+      albumArtUrl: map['image_url'] as String?,
+      durationMs: map['duration_ms'] as int? ?? 0,
+      streamUrl: map['preview_url'] as String?,
+      popularity: map['popularity'] as int?,
+      explicit: (map['explicit'] as int?) == 1,
+      addedAt: map['added_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['added_at'] as int)
+          : null,
+    );
+  }
 }
 

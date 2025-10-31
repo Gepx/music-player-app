@@ -52,7 +52,7 @@ void main() async {
   await SpotifyCacheService.instance.initialize();
 
   // Validate Spotify API configuration
-  SpotifyAuthService.instance.validateToken();
+  await SpotifyAuthService.instance.validateToken();
 
   runApp(const App());
 }
