@@ -18,6 +18,9 @@
 					<!-- TODO Replace this value: -->
 					<!-- Copied from GoogleService-Info.plist key REVERSED_CLIENT_ID -->
 					<string>com.googleusercontent.apps.839809408591-83e13rekrairp3gat20tijj7o49jj92a</string>
+		  <!-- Facebook Login Section -->	
+					<string>fb844484934746673</string>
+      <string>com.googleusercontent.apps.https://music-player-ec3b9.firebaseapp.com/__/auth/handler</string>
 				</array>
 			</dict>
 		</array>

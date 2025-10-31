@@ -156,7 +156,10 @@ class AuthService {
           provider: 'google',
         );
         await _syncUserData(user);
-        return AuthResponse.success(user, message: 'Signed in with Google');
+        return AuthResponse.success(
+          user,
+          message: 'Successfully signed in with Google',
+        );
       }
 
       await _ensureGoogleInitialized();
@@ -230,7 +233,31 @@ class AuthService {
     try {
       if (kIsWeb) {
         await _auth.setPersistence(Persistence.LOCAL);
+
+        await FacebookAuth.instance.webAndDesktopInitialize(
+          appId: '844484934746673',
+          cookie: true,
+          xfbml: true,
+          version: 'v16.0',
+        );
+
+        final provider = FacebookAuthProvider();
+        provider.addScope('email');
+
+        final userCredential = await _auth.signInWithPopup(provider);
+        final user = await _createUserModel(
+          userCredential.user!,
+          provider: 'facebook',
+        );
+
+        await _syncUserData(user);
+
+        return AuthResponse.success(
+          user,
+          message: 'Successfully signed in with Facebook!',
+        );
       }
+
       final LoginResult facebookUser = await FacebookAuth.instance.login(
         permissions: ['email', 'public_profile'],
       );
@@ -263,7 +290,8 @@ class AuthService {
         );
       }
     } catch (e) {
-      return AuthResponse.failure(message: 'Google sign failed');
+      debugPrint('❌ Facebook sign-in error: $e');
+      return AuthResponse.failure(message: 'Facebook sign-in failed');
     }
   }
 

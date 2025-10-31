@@ -3,6 +3,7 @@ import 'package:music_player/data/services/services.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:music_player/utils/constants/image_strings.dart';
 import 'package:music_player/utils/constants/sizes.dart';
+import 'package:music_player/utils/helpers/helper_functions.dart';
 
 class FSocialButtons extends StatelessWidget {
   const FSocialButtons({super.key});
@@ -19,7 +20,12 @@ class FSocialButtons extends StatelessWidget {
           ),
           child: IconButton(
             onPressed: () async {
-              await AuthService.instance.signInWithGoogle();
+              final res = await AuthService.instance.signInWithGoogle();
+              if (!res.success) {
+                FHelperFunctions.showSnackBar(
+                  res.message ?? 'Google sign-in failed',
+                );
+              }
             },
             icon: const Image(
               image: AssetImage(FImages.google),
@@ -35,7 +41,14 @@ class FSocialButtons extends StatelessWidget {
             borderRadius: BorderRadius.circular(100),
           ),
           child: IconButton(
-            onPressed: () {},
+            onPressed: () async {
+              final res = await AuthService.instance.signInWithFacebook();
+              if (!res.success) {
+                FHelperFunctions.showSnackBar(
+                  res.message ?? 'Facebook sign-in failed',
+                );
+              }
+            },
             icon: const Image(
               image: AssetImage(FImages.facebook),
               width: FSizes.iconMd,
