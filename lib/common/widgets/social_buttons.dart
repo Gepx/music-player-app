@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_player/data/services/services.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:music_player/utils/constants/image_strings.dart';
 import 'package:music_player/utils/constants/sizes.dart';
@@ -17,7 +18,9 @@ class FSocialButtons extends StatelessWidget {
             borderRadius: BorderRadius.circular(100),
           ),
           child: IconButton(
-            onPressed: () {},
+            onPressed: () async {
+              await AuthService.instance.signInWithGoogle();
+            },
             icon: const Image(
               image: AssetImage(FImages.google),
               width: FSizes.iconMd,

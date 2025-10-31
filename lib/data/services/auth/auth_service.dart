@@ -24,9 +24,9 @@ class AuthService {
 
   // Services
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleInitialized = false;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  // ⛔ REMOVED: final LocalDatabaseService _localDb = LocalDatabaseService.instance;
   final FirestoreUserService _firestoreUser = FirestoreUserService.instance;
   // ⛔ REMOVED: final PreferencesService _prefs = PreferencesService.instance;
 
@@ -139,50 +139,77 @@ class AuthService {
     }
   }
 
-  // -------------------- Google Sign-In -------------------- //
+  // -------------------- Third Party Provider -------------------- //
 
   /// Sign in with Google
   Future<AuthResponse> signInWithGoogle() async {
     try {
       if (kIsWeb) {
         await _auth.setPersistence(Persistence.LOCAL);
+
+        final provider =
+            GoogleAuthProvider()
+              ..setCustomParameters({'prompt': 'select_account'});
+        final userCredential = await _auth.signInWithPopup(provider);
+        final user = await _createUserModel(
+          userCredential.user!,
+          provider: 'google',
+        );
+        await _syncUserData(user);
+        return AuthResponse.success(user, message: 'Signed in with Google');
       }
-      // Trigger Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      if (googleUser == null) {
-        // User cancelled the sign-in
-        return AuthResponse.failure(message: 'Google sign-in cancelled');
+      await _ensureGoogleInitialized();
+
+      GoogleSignInAccount? googleUser;
+
+      try {
+        final future = _googleSignIn.attemptLightweightAuthentication();
+        if (future != null) {
+          googleUser = await future;
+        }
+      } on GoogleSignInException catch (e) {
+        if (e.code != GoogleSignInExceptionCode.canceled) {
+          debugPrint('⚠️ Lightweight Google auth failed: ${e.code}');
+        }
       }
 
-      // Obtain auth details
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      googleUser ??= await _googleSignIn.authenticate();
 
-      // Create Firebase credential
+      final googleAuth = googleUser.authentication;
+      if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
+        debugPrint('❌ Google auth missing ID token');
+        return AuthResponse.failure(
+          message: 'Unable to retrieve Google ID token',
+        );
+      }
+
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase
       final userCredential = await _auth.signInWithCredential(credential);
 
-      // Create user model
       final user = await _createUserModel(
         userCredential.user!,
         provider: 'google',
       );
 
-      // Save to Firestore
       await _syncUserData(user);
-
-      // ⛔ REMOVED: _prefs.saveLoginState(true, user.id);
 
       debugPrint('✅ Google sign-in successful: ${user.email}');
       return AuthResponse.success(user, message: 'Signed in with Google');
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        debugPrint('⚠️ Google sign-in cancelled by user');
+        return AuthResponse.failure(message: 'Google sign-in cancelled');
+      }
+      debugPrint('❌ Google sign-in error: ${e.code} - ${e.description}');
+      return AuthResponse.failure(
+        message: e.description ?? 'Google sign-in failed',
+      );
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Google sign-in error: ${e.code} - ${e.message}');
+      debugPrint('❌ Google sign-in Firebase error: ${e.code} - ${e.message}');
       return AuthResponse.failure(
         message: _getAuthErrorMessage(e.code),
         errorCode: e.code,
@@ -191,6 +218,12 @@ class AuthService {
       debugPrint('❌ Unexpected Google sign-in error: $e');
       return AuthResponse.failure(message: 'Google sign-in failed');
     }
+  }
+
+  Future<void> _ensureGoogleInitialized() async {
+    if (_googleInitialized) return;
+    await _googleSignIn.initialize();
+    _googleInitialized = true;
   }
 
   Future<AuthResponse> signInWithFacebook() async {
@@ -217,8 +250,6 @@ class AuthService {
 
         await _syncUserData(user);
 
-        // ⛔ REMOVED: _prefs.saveLoginState(true, user.id);
-
         return AuthResponse(
           user: user,
           message: 'Signed in with Facebook',
@@ -232,8 +263,7 @@ class AuthService {
         );
       }
     } catch (e) {
-      debugPrint('❌ Facebook sign-in error: $e');
-      return AuthResponse.failure(message: 'Facebook sign-in failed');
+      return AuthResponse.failure(message: 'Google sign failed');
     }
   }
 
@@ -259,7 +289,6 @@ class AuthService {
       debugPrint('✅ JWT tokens stored securely');
     } catch (e) {
       debugPrint('❌ Error storing tokens: $e');
-      rethrow;
     }
   }
 
@@ -413,9 +442,11 @@ class AuthService {
   /// Sign out from all services
   Future<void> signOut() async {
     try {
-      // Sign out from Google if signed in
-      if (await _googleSignIn.isSignedIn()) {
+      // Sign out from Google if possible
+      try {
         await _googleSignIn.signOut();
+      } catch (e) {
+        debugPrint('⚠️ Google sign-out skipped: $e');
       }
 
       // Sign out from Firebase
@@ -455,8 +486,10 @@ class AuthService {
       await user.delete();
 
       // Sign out from Google if needed
-      if (await _googleSignIn.isSignedIn()) {
+      try {
         await _googleSignIn.signOut();
+      } catch (e) {
+        debugPrint('⚠️ Google sign-out skipped: $e');
       }
 
       debugPrint('✅ User account deleted from all storage');
