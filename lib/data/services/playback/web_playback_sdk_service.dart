@@ -94,6 +94,24 @@ class WebPlaybackSDKService extends ChangeNotifier {
     }
   }
 
+  /// Queue the current track for a retry if playback fails
+  void queueCurrentTrackForRetry() {
+    final current = _currentTrack;
+    if (current == null) return;
+
+    debugPrint('🔁 Scheduling retry for track: ${current.name}');
+    final pending = current;
+    final pendingPlaylist = List<SpotifyTrack>.from(_queue);
+    _pendingTrack = pending;
+    _pendingPlaylist = pendingPlaylist;
+
+    if (_onPlayUri != null && _deviceId != null) {
+      _pendingTrack = null;
+      _pendingPlaylist = null;
+      _playPendingTrack(pending, playlist: pendingPlaylist);
+    }
+  }
+
   /// Play a track
   Future<void> playTrack(SpotifyTrack track, {List<SpotifyTrack>? playlist}) async {
     try {
@@ -115,6 +133,7 @@ class WebPlaybackSDKService extends ChangeNotifier {
         _currentIndex = 0;
       }
 
+      _currentPosition = Duration.zero;
       _isPlaying = true;
       notifyListeners();
 
@@ -143,6 +162,7 @@ class WebPlaybackSDKService extends ChangeNotifier {
       debugPrint('❌ Error playing track: $e');
       _isPlaying = false;
       notifyListeners();
+      queueCurrentTrackForRetry();
     }
   }
 
