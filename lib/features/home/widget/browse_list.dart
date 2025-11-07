@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:music_player/features/home/widget/pages/new_releases_page.dart';
+import 'package:music_player/features/home/widget/pages/featured_playlists_page.dart';
 
 class BrowseList extends StatelessWidget {
   const BrowseList({super.key});
@@ -11,7 +13,6 @@ class BrowseList extends StatelessWidget {
       {'title': 'New Releases', 'subtitle': 'The latest music'},
       {'title': 'Charts', 'subtitle': 'Top songs and albums'},
       {'title': 'Genres & Moods', 'subtitle': 'Find your vibe'},
-      {'title': 'Podcasts', 'subtitle': 'Discover podcasts'},
     ];
 
     return Column(
@@ -50,7 +51,35 @@ class BrowseList extends StatelessWidget {
                   color: FColors.textWhite,
                   size: 20,
                 ),
-                onTap: () {},
+                onTap: () {
+                  final title = item['title'] as String;
+                  if (title == 'New Releases') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NewReleasesPage(),
+                      ),
+                    );
+                  } else if (title == 'Charts') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FeaturedPlaylistsPage(
+                          title: 'Charts',
+                          categoryId: 'toplists',
+                        ),
+                      ),
+                    );
+                  } else if (title == 'Genres & Moods') {
+                    // Temporary: show featured playlists; can be replaced with a categories page later
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FeaturedPlaylistsPage(title: 'Genres & Moods'),
+                      ),
+                    );
+                  }
+                },
               ),
             );
           }).toList(),

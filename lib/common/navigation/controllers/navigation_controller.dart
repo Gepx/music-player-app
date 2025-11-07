@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:music_player/features/home/screen/home_page.dart';
 import 'package:music_player/features/search/search_page.dart';
-import 'package:music_player/common/navigation/screens/placeholder_pages.dart';
+import 'package:music_player/common/navigation/screens/placeholder_pages.dart' hide ProfilePage;
+import 'package:music_player/features/profile/profile_page.dart';
 
 class NavigationController extends GetxController {
   static NavigationController get instance => Get.find();

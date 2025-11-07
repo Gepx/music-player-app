@@ -20,6 +20,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void dispose() {
+    if (Get.isRegistered<HomeController>()) {
+      Get.delete<HomeController>();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final controller = Get.find<HomeController>();
 
@@ -34,6 +42,8 @@ class _HomePageState extends State<HomePage> {
 
             // Content
             const HomeContent(),
+
+            
           ],
         ),
       ),
