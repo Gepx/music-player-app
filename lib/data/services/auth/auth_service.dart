@@ -252,9 +252,10 @@ class AuthService {
 
         await _syncUserData(user);
 
-        return AuthResponse.success(
-          user,
-          message: 'Successfully signed in with Facebook!',
+        return AuthResponse(
+          user: user,
+          message: 'Signed in with Facebook',
+          success: true,
         );
       }
 
@@ -469,25 +470,41 @@ class AuthService {
 
   /// Sign out from all services
   Future<void> signOut() async {
+    FirebaseAuthException? firebaseError;
+
     try {
-      // Sign out from Google if possible
-      try {
-        await _googleSignIn.signOut();
-      } catch (e) {
-        debugPrint('⚠️ Google sign-out skipped: $e');
+      if (!_googleInitialized) {
+        try {
+          await _ensureGoogleInitialized();
+        } catch (_) {}
       }
 
-      // Sign out from Firebase
-      await _auth.signOut();
-
-      // Clear tokens
-      await clearTokens();
-
-      debugPrint('✅ User signed out successfully');
+      await _googleSignIn.signOut();
     } catch (e) {
-      debugPrint('❌ Error signing out: $e');
-      rethrow;
+      debugPrint('⚠️ Google sign-out skipped: $e');
     }
+
+    try {
+      await _auth.signOut();
+    } on FirebaseAuthException catch (e) {
+      firebaseError = e;
+      debugPrint('❌ Firebase sign-out error: ${e.code}');
+    } catch (e) {
+      debugPrint('❌ Error signing out of Firebase: $e');
+      firebaseError = FirebaseAuthException(code: 'sign-out-failed', message: e.toString());
+    }
+
+    try {
+      await clearTokens();
+    } catch (e) {
+      debugPrint('⚠️ Token cleanup skipped: $e');
+    }
+
+    if (firebaseError != null) {
+      throw firebaseError;
+    }
+
+    debugPrint('✅ User signed out successfully');
   }
 
   /// Delete user account
