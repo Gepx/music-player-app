@@ -137,5 +137,44 @@ class PlaylistModel extends Equatable {
         isFromSpotify,
         uri,
       ];
+
+  // -------------------- SQLite Serialization -------------------- //
+
+  /// Convert to SQLite map
+  Map<String, dynamic> toSQLite() {
+    return {
+      'id': id,
+      'spotify_id': spotifyId ?? id,
+      'name': name,
+      'description': description,
+      'owner_id': ownerId,
+      'owner_name': ownerName,
+      'image_url': coverUrl,
+      'total_tracks': trackIds.length,
+      'is_public': isPublic ? 1 : 0,
+      'is_collaborative': isCollaborative ? 1 : 0,
+      'cached_at': DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  /// Create from SQLite map
+  factory PlaylistModel.fromSQLite(Map<String, dynamic> map) {
+    final now = DateTime.now();
+    
+    return PlaylistModel(
+      id: map['id'] as String,
+      spotifyId: map['spotify_id'] as String?,
+      name: map['name'] as String,
+      description: map['description'] as String?,
+      coverUrl: map['image_url'] as String?,
+      ownerId: map['owner_id'] as String? ?? 'unknown',
+      ownerName: map['owner_name'] as String? ?? 'Unknown',
+      isPublic: (map['is_public'] as int?) == 1,
+      isCollaborative: (map['is_collaborative'] as int?) == 1,
+      createdAt: now, // Default to now since not stored in DB
+      updatedAt: now,
+      isFromSpotify: true, // Assume from Spotify if cached
+    );
+  }
 }
 

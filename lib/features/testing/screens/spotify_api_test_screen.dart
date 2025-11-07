@@ -198,7 +198,7 @@ class SpotifyApiTestScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Add SPOTIFY_API_TOKEN to your .env file to start testing',
+                    'Add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to your .env file',
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
@@ -241,7 +241,7 @@ class SpotifyApiTestScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Spotify API token loaded from .env - All endpoints ready to test',
+                  'OAuth configured - Tokens auto-refresh every hour',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
