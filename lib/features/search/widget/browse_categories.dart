@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:music_player/features/search/widget/subwidget/category_card.dart';
 import 'package:music_player/utils/constants/colors.dart';
+import 'genre_results_page.dart';
 
 class BrowseCategories extends StatelessWidget {
   const BrowseCategories({super.key});
@@ -63,7 +64,12 @@ class BrowseCategories extends StatelessWidget {
             return CategoryCard(
               category: category,
               onTap: () {
-                // Navigate to category
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GenreResultsPage(title: category.name),
+                  ),
+                );
               },
             );
           },

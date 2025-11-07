@@ -38,6 +38,7 @@ dependencies:
 
   # Audio Player
   just_audio: ^0.9.42
+  flutter_inappwebview: ^6.0.0
 
   # State Management
   get: ^4.7.2

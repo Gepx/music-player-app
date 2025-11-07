@@ -138,7 +138,9 @@ class _FLoginFormState extends State<FLoginForm> {
                             password: _password.text.trim(),
                           );
 
-                          setState(() => _submitting = false);
+                          if (mounted) {
+                            setState(() => _submitting = false);
+                          }
 
                           if (res.success) {
                             FHelperFunctions.showSnackBar(FTexts.signInSuccess);

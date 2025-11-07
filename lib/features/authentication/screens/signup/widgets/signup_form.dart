@@ -207,7 +207,10 @@ class _FSignupFormState extends State<FSignupForm> {
                           password: _password.text,
                           displayName: displayName,
                         );
-                        setState(() => _submitting = false);
+                        
+                        if (mounted) {
+                          setState(() => _submitting = false);
+                        }
 
                         if (res.success) {
                           FHelperFunctions.showSnackBar(
