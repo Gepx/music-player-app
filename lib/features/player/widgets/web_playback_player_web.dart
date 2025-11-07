@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:flutter/material.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
-import 'package:music_player/utils/constants/colors.dart';
 
 /// Web-specific implementation of Spotify Web Playback SDK
 /// Uses dart:html instead of InAppWebView
@@ -23,9 +23,12 @@ class WebPlaybackPlayerWeb extends StatefulWidget {
 
 class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   final WebPlaybackSDKService _sdkService = WebPlaybackSDKService.instance;
+  // ignore: unused_field
   bool _isLoading = true;
   bool _sdkReady = false;
   dynamic _player; // Store reference to the Spotify player
+  Timer? _positionPollTimer; // Timer to poll player position
+  bool _isDisposed = false; // Track if widget is disposed
 
   @override
   void initState() {
@@ -59,6 +62,12 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   }
 
   Future<void> _loadSpotifySDK() async {
+    // Don't load if already loaded (important for hot reload)
+    if (_isSpotifySDKLoaded()) {
+      debugPrint('📦 Spotify SDK already loaded');
+      return;
+    }
+
     final script = html.ScriptElement()
       ..src = 'https://sdk.scdn.co/spotify-player.js'
       ..async = true;
@@ -71,29 +80,50 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
 
   void _waitForSDKReady() {
     // Set up callback for when SDK is ready
-    js.context['onSpotifyWebPlaybackSDKReady'] = js.allowInterop(() async {
-      debugPrint('✅ Spotify SDK Ready (Web)');
-      await _createPlayer();
-    });
+    // Only set if not already set (to avoid multiple callbacks after hot reload)
+    if (js.context['onSpotifyWebPlaybackSDKReady'] == null) {
+      js.context['onSpotifyWebPlaybackSDKReady'] = js.allowInterop(() async {
+        debugPrint('✅ Spotify SDK Ready (Web)');
+        if (mounted && !_isDisposed) {
+          await _createPlayer();
+        }
+      });
+    }
 
-    // Check if SDK is already ready
+    // Check if SDK is already ready (might be after hot reload)
     if (js.context.hasProperty('Spotify')) {
+      debugPrint('🔄 Spotify SDK already loaded, creating player...');
       _createPlayer();
     }
   }
 
   Future<void> _createPlayer() async {
     try {
+      // Disconnect any existing player first to avoid conflicts
+      await _disconnectPlayer();
+
       final token = await _sdkService.getAccessToken();
       if (token == null) {
         debugPrint('❌ No access token available');
         debugPrint('⚠️  Please complete Premium setup: dart tools/spotify_token_setup.dart');
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           setState(() {
             _isLoading = false;
             _sdkReady = false;
           });
         }
+        return;
+      }
+
+      // Check if Spotify namespace exists
+      if (!js.context.hasProperty('Spotify')) {
+        debugPrint('⚠️ Spotify SDK not loaded yet, waiting...');
+        // Wait a bit and retry
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_isDisposed) {
+            _createPlayer();
+          }
+        });
         return;
       }
 
@@ -146,6 +176,9 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
             );
           }
         },
+        onSeek: (positionMs) {
+          _player?.callMethod('seek', [positionMs]);
+        },
       );
 
       // Add event listeners
@@ -154,7 +187,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         debugPrint('🎵 Player ready with device ID: $deviceId');
         _sdkService.setDeviceId(deviceId);
         
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           setState(() {
             _sdkReady = true;
             _isLoading = false;
@@ -163,10 +196,32 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         
         widget.onReady?.call();
         
-        // Give the device a moment to register with Spotify, then play
-        Future.delayed(const Duration(milliseconds: 750), () {
-          _playTrack(deviceId, token);
-        });
+        // Check if there's a current track that needs to be played
+        final currentTrack = _sdkService.currentTrack;
+        final trackIdFromUri = widget.trackUri.replaceAll('spotify:track:', '');
+        
+        if (currentTrack != null) {
+          final currentUri = 'spotify:track:${currentTrack.id}';
+          final uriToPlay = currentUri;
+
+          // Always attempt to play the current track after a short delay so the device can register
+          debugPrint('▶️ Ensuring current track is playing: ${currentTrack.name}');
+          Future.delayed(const Duration(milliseconds: 750), () {
+            if (mounted && !_isDisposed) {
+              _playTrack(deviceId, token, trackUri: uriToPlay);
+            }
+          });
+        } else {
+          // No current track stored in service; fall back to widget track URI if available
+          if (widget.trackUri.isNotEmpty) {
+            debugPrint('⚠️ No current track in service, attempting to play widget URI: $trackIdFromUri');
+            Future.delayed(const Duration(milliseconds: 750), () {
+              if (mounted && !_isDisposed) {
+                _playTrack(deviceId, token);
+              }
+            });
+          }
+        }
       })]);
 
       _player.callMethod('addListener', ['not_ready', js.allowInterop((data) {
@@ -186,6 +241,9 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
           _sdkService.updatePlayingState(!paused);
         }
       })]);
+
+      // Start polling player position for more reliable updates
+      _startPositionPolling();
 
       _player.callMethod('addListener', ['initialization_error', js.allowInterop((error) {
         final message = error['message'] ?? 'Unknown error';
@@ -273,7 +331,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
       debugPrint('✅ Web Playback SDK player created');
     } catch (e) {
       debugPrint('❌ Error creating player: $e');
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _isLoading = false;
         });
@@ -281,9 +339,45 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
     }
   }
 
-  Future<void> _playTrack(String deviceId, String token) async {
+  /// Disconnect and clean up the player
+  Future<void> _disconnectPlayer() async {
+    if (_player != null) {
+      try {
+        debugPrint('🔌 Disconnecting player...');
+        // Remove all listeners first
+        try {
+          _player.callMethod('removeListener', ['ready']);
+          _player.callMethod('removeListener', ['not_ready']);
+          _player.callMethod('removeListener', ['player_state_changed']);
+          _player.callMethod('removeListener', ['initialization_error']);
+          _player.callMethod('removeListener', ['authentication_error']);
+          _player.callMethod('removeListener', ['account_error']);
+          _player.callMethod('removeListener', ['playback_error']);
+        } catch (e) {
+          debugPrint('⚠️ Error removing listeners: $e');
+        }
+        
+        // Disconnect the player
+        try {
+          _player.callMethod('disconnect');
+        } catch (e) {
+          debugPrint('⚠️ Error disconnecting player: $e');
+        }
+        
+        _player = null;
+        _sdkReady = false;
+        debugPrint('✅ Player disconnected');
+      } catch (e) {
+        debugPrint('❌ Error during player disconnect: $e');
+        _player = null;
+      }
+    }
+  }
+
+  Future<void> _playTrack(String deviceId, String token, {String? trackUri}) async {
     try {
-      debugPrint('🎵 Playing track: ${widget.trackUri}');
+      final uri = trackUri ?? widget.trackUri;
+      debugPrint('🎵 Playing track: $uri');
 
       // Ensure playback is transferred to this device
       await _transferPlayback(deviceId, token);
@@ -295,7 +389,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        sendData: '{"uris": ["${widget.trackUri}"]}',
+        sendData: '{"uris": ["$uri"]}',
       );
 
       if (response.status == 204 || response.status == 200) {
@@ -335,16 +429,73 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   @override
   void didUpdateWidget(WebPlaybackPlayerWeb oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.trackUri != widget.trackUri && _sdkReady) {
+    if (oldWidget.trackUri != widget.trackUri && _sdkReady && !_isDisposed) {
       final deviceId = _sdkService.deviceId;
-      if (deviceId != null) {
+      if (deviceId != null && _player != null) {
         _sdkService.getAccessToken().then((token) {
-          if (token != null) {
+          if (token != null && mounted && !_isDisposed) {
             _playTrack(deviceId, token);
           }
         });
+      } else if (deviceId == null) {
+        // Device not ready yet, wait for ready event
+        debugPrint('⚠️ Device ID not available yet, waiting for ready event...');
       }
     }
+  }
+
+  /// Start polling player position for reliable updates
+  void _startPositionPolling() {
+    _positionPollTimer?.cancel();
+    _positionPollTimer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
+      if (_player == null || !mounted || _isDisposed) {
+        timer.cancel();
+        return;
+      }
+
+      try {
+        // Call getCurrentState() on the player to get current position
+        // This returns a JavaScript Promise
+        final promise = _player.callMethod('getCurrentState') as js.JsObject;
+        
+        // Handle the promise
+        promise.callMethod('then', [
+          js.allowInterop((state) {
+            if (state != null) {
+              final stateObj = state as js.JsObject;
+              final position = stateObj['position'] as int?;
+              final paused = stateObj['paused'] as bool?;
+              final duration = stateObj['duration'] as int?;
+              
+              if (position != null) {
+                _sdkService.updatePosition(Duration(milliseconds: position));
+              }
+              if (paused != null) {
+                _sdkService.updatePlayingState(!paused);
+              }
+              if (duration != null && duration > 0) {
+                _sdkService.updateTotalDuration(Duration(milliseconds: duration));
+              }
+            }
+          }),
+          js.allowInterop((error) {
+            // Silently handle errors (player might not be ready)
+            // This is expected if player is not initialized yet
+          }),
+        ]);
+      } catch (e) {
+        // Silently handle errors - player might not be ready yet
+        // This is expected during initialization
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _positionPollTimer?.cancel();
+    _disconnectPlayer();
+    super.dispose();
   }
 
   @override

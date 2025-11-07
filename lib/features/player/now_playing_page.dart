@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:music_player/features/player/widgets/spotify_embed_player.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
+import 'package:music_player/utils/formatters/number_formatter.dart';
 
 class NowPlayingPage extends StatefulWidget {
   final SpotifyTrack track;
@@ -30,21 +32,58 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   late bool _isMobilePlatform;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
   String? _fetchedImageUrl;
+  Timer? _positionUpdateTimer;
 
   @override
   void initState() {
     super.initState();
     _checkPlatform();
     
+    // Listen to service changes
     if (_isMobilePlatform) {
-      // Mobile: Use Spotify embed player (full tracks)
-      _embedService.loadTrack(widget.track, playlist: widget.playlist);
       _embedService.addListener(_onStateChanged);
     } else {
-      // Desktop: Use Web Playback SDK (full tracks)
-      _webPlaybackService.playTrack(widget.track, playlist: widget.playlist);
       _webPlaybackService.addListener(_onStateChanged);
     }
+    
+    // Only load track if it's different from what's currently playing
+    // This prevents restarting playback when navigating from mini player
+    final currentTrack = _isMobilePlatform 
+        ? _embedService.currentTrack 
+        : _webPlaybackService.currentTrack;
+    
+    if (currentTrack?.id != widget.track.id) {
+      // Track is different, load it
+      if (_isMobilePlatform) {
+        _embedService.loadTrack(widget.track, playlist: widget.playlist);
+      } else {
+        _webPlaybackService.playTrack(widget.track, playlist: widget.playlist);
+      }
+    } else {
+      // Same track is already playing - don't restart!
+      // Just update the queue silently if playlist is provided and different
+      if (widget.playlist != null && widget.playlist!.isNotEmpty) {
+        final currentQueue = _isMobilePlatform 
+            ? _embedService.queue 
+            : _webPlaybackService.queue;
+        
+        // Only update if queue is different
+        if (currentQueue.length != widget.playlist!.length ||
+            !currentQueue.every((t) => widget.playlist!.any((p) => p.id == t.id))) {
+          // Queue is different, update it (this will still restart, but it's a different queue)
+          if (_isMobilePlatform) {
+            _embedService.loadTrack(widget.track, playlist: widget.playlist);
+          } else {
+            _webPlaybackService.playTrack(widget.track, playlist: widget.playlist);
+          }
+        }
+        // If queue is the same, do nothing - track continues playing
+      }
+      // If no playlist provided and track is same, do nothing - track continues playing
+    }
+    
+    // Start position update timer
+    _startPositionUpdateTimer();
   }
 
   void _checkPlatform() {
@@ -57,12 +96,29 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   void dispose() {
+    _positionUpdateTimer?.cancel();
     if (_isMobilePlatform) {
       _embedService.removeListener(_onStateChanged);
     } else {
       _webPlaybackService.removeListener(_onStateChanged);
     }
     super.dispose();
+  }
+
+  void _startPositionUpdateTimer() {
+    _positionUpdateTimer?.cancel();
+    _positionUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (mounted && _currentTrack != null) {
+        if (!_isMobilePlatform) {
+          // For web, position is updated by player_state_changed listener
+          // Timer just triggers UI refresh
+          setState(() {});
+        } else if (_isMobilePlatform && _embedService.currentTrack != null) {
+          // For mobile, we can't get real-time position, but we can still update UI
+          setState(() {});
+        }
+      }
+    });
   }
 
   void _onStateChanged() {
@@ -105,6 +161,35 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final track = _currentTrack;
     if (track == null) return '';
     return track.artists.map((artist) => artist.name).join(', ');
+  }
+
+  bool _getIsPlaying() {
+    // For embed service (mobile), we can't access playing state from iframe
+    // Always show as "playing" if there's a track
+    return _isMobilePlatform
+        ? (_embedService.currentTrack != null)
+        : _webPlaybackService.isPlaying;
+  }
+
+  Duration _getCurrentPosition() {
+    return _isMobilePlatform
+        ? Duration.zero // Embed service doesn't provide position
+        : _webPlaybackService.currentPosition;
+  }
+
+  Duration _getTotalDuration() {
+    final track = _currentTrack;
+    if (track == null) return Duration.zero;
+    
+    return _isMobilePlatform
+        ? Duration(milliseconds: track.durationMs)
+        : _webPlaybackService.totalDuration;
+  }
+
+  void _seekTo(Duration position) {
+    if (!_isMobilePlatform) {
+      _webPlaybackService.seekTo(position);
+    }
   }
 
   void _showQueueSheet() {
@@ -387,19 +472,102 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
             const SizedBox(height: 24),
 
-            // Playback Section
+            // Hidden embed player for mobile (plays music but not visible)
             if (_isMobilePlatform)
-              // Mobile: Spotify Embed Player (Full Tracks)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: SpotifyEmbedPlayer(
-                  key: ValueKey(track.id),
-                  trackId: track.id,
+              Offstage(
+                child: SizedBox(
+                  width: 1,
+                  height: 1,
+                  child: SpotifyEmbedPlayer(
+                    key: ValueKey(track.id),
+                    trackId: track.id,
+                  ),
                 ),
-              )
-            else
-              // Desktop: Web Playback SDK runs in global host; no visual container needed
-              const SizedBox.shrink(),
+              ),
+
+            // Progress bar and time display
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Builder(
+                builder: (context) {
+                  final currentPosition = _getCurrentPosition();
+                  final totalDuration = _getTotalDuration();
+                  final progress = totalDuration.inMilliseconds > 0
+                      ? currentPosition.inMilliseconds / totalDuration.inMilliseconds
+                      : 0.0;
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4.0,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+                          activeTrackColor: FColors.primary,
+                          inactiveTrackColor: FColors.darkerGrey,
+                          thumbColor: FColors.primary,
+                          overlayColor: FColors.primary.withValues(alpha: 0.2),
+                        ),
+                        child: Slider(
+                          value: progress.clamp(0.0, 1.0),
+                          onChangeStart: !_isMobilePlatform
+                              ? (value) {
+                                  // Pause updates while dragging
+                                  _positionUpdateTimer?.cancel();
+                                }
+                              : null,
+                          onChanged: !_isMobilePlatform
+                              ? (value) {
+                                  final newPosition = Duration(
+                                    milliseconds: (value * totalDuration.inMilliseconds).round(),
+                                  );
+                                  _seekTo(newPosition);
+                                  // Update UI immediately while dragging
+                                  setState(() {});
+                                }
+                              : null,
+                          onChangeEnd: !_isMobilePlatform
+                              ? (value) {
+                                  // Resume updates after dragging
+                                  _startPositionUpdateTimer();
+                                }
+                              : null,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0, left: 4.0, right: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              FNumberFormatter.formatDurationFromDuration(currentPosition),
+                              style: TextStyle(
+                                color: FColors.textWhite.withValues(alpha: 0.6),
+                                fontSize: 12,
+                                fontFamily: 'Poppins',
+                                height: 1.0,
+                              ),
+                            ),
+                            Text(
+                              FNumberFormatter.formatDurationFromDuration(totalDuration),
+                              style: TextStyle(
+                                color: FColors.textWhite.withValues(alpha: 0.6),
+                                fontSize: 12,
+                                fontFamily: 'Poppins',
+                                height: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
 
             // Track Info
             Padding(
@@ -490,7 +658,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                         ),
                         child: IconButton(
                           icon: Icon(
-                            (_isMobilePlatform ? (_embedService.currentTrack != null) : _webPlaybackService.isPlaying)
+                            _getIsPlaying()
                                 ? Iconsax.pause
                                 : Iconsax.play,
                             color: Colors.white,
@@ -498,11 +666,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           iconSize: 36,
                           onPressed: () {
                             if (_isMobilePlatform) {
-                              // We cannot control the iframe; open the full embed and rely on its UI
-                              // Here we simply keep UX consistent by doing nothing
-                              // (Users can pause from the embed control)
+                              // For mobile, we can't control the embed iframe directly
+                              // The embed player handles its own controls
+                              // But we can still update the UI state
+                              setState(() {});
                             } else {
                               _webPlaybackService.togglePlayPause();
+                              setState(() {}); // Update UI immediately
                             }
                           },
                         ),
