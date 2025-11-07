@@ -1,20 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:music_player/utils/constants/colors.dart';
+import 'package:music_player/data/services/spotify/spotify_services.dart';
+import 'package:music_player/data/models/spotify/spotify_search_result.dart';
+import 'package:music_player/data/services/spotify/spotify_cache_service.dart';
+import 'package:music_player/features/album/album_detail_page.dart';
+import 'package:music_player/features/artist/artist_detail_page.dart';
+import 'package:music_player/data/services/playback/spotify_embed_service.dart';
+import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 
-class RecentSearches extends StatelessWidget {
+class RecentSearches extends StatefulWidget {
   const RecentSearches({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final recentSearches = [
-      'Liked Songs',
-      'Rock Classics',
-      'Ed Sheeran',
-      'Chill Vibes',
-    ];
+  State<RecentSearches> createState() => _RecentSearchesState();
+}
 
-    if (recentSearches.isEmpty) return const SizedBox.shrink();
+class _RecentSearchesState extends State<RecentSearches> {
+  final SpotifyCacheService _cache = SpotifyCacheService.instance;
+  final SpotifyApiService _spotify = SpotifyApiService.instance;
+  final SpotifyEmbedService _embed = SpotifyEmbedService.instance;
+  final WebPlaybackSDKService _web = WebPlaybackSDKService.instance;
+  late final bool _isMobilePlatform;
+  List<String> _queries = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _isMobilePlatform = kIsWeb ? false : (Platform.isAndroid || Platform.isIOS);
+    _load();
+  }
+
+  Future<void> _load() async {
+    final list = await _cache.getSearchHistory(limit: 10);
+    if (!mounted) return;
+    setState(() => _queries = list);
+  }
+
+  Future<void> _playFromQuery(String query) async {
+    try {
+      final result = await _spotify.search(query: query, type: SpotifySearchType.all, limit: 5);
+      // Prefer tracks; else go to album; else artist page
+      if ((result.tracks?.items.isNotEmpty ?? false)) {
+        final track = result.tracks!.items.first;
+        if (_isMobilePlatform) {
+          _embed.loadTrack(track, playlist: [track]);
+        } else {
+          await _web.playTrack(track, playlist: [track]);
+        }
+        return;
+      }
+      if ((result.albums?.items.isNotEmpty ?? false)) {
+        final album = result.albums!.items.first;
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AlbumDetailPage(album: album)),
+        );
+        return;
+      }
+      if ((result.artists?.items.isNotEmpty ?? false)) {
+        final artist = result.artists!.items.first;
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ArtistDetailPage(artist: artist)),
+        );
+        return;
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_queries.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,51 +90,56 @@ class RecentSearches extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        ...recentSearches.map((search) => _buildRecentSearchItem(search)),
+        ..._queries.map((q) => _buildRecentSearchItem(q)),
       ],
     );
   }
 
   Widget _buildRecentSearchItem(String title) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              gradient: FColors.linearGradient,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Iconsax.music,
-              color: FColors.textWhite,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
+    return InkWell(
+      onTap: () => _playFromQuery(title),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: FColors.linearGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Iconsax.music,
                 color: FColors.textWhite,
-                fontSize: 16,
-                fontFamily: 'Poppins',
+                size: 24,
               ),
             ),
-          ),
-          IconButton(
-            onPressed: () {
-              // Remove from recent searches
-            },
-            icon: Icon(
-              Iconsax.close_circle,
-              color: FColors.textWhite.withValues(alpha: 0.6),
-              size: 20,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: FColors.textWhite,
+                  fontSize: 16,
+                  fontFamily: 'Poppins',
+                ),
+              ),
             ),
-          ),
-        ],
+            IconButton(
+              onPressed: () async {
+                await _cache.removeSearchQuery(title);
+                if (mounted) _load();
+              },
+              icon: Icon(
+                Iconsax.close_circle,
+                color: FColors.textWhite.withValues(alpha: 0.6),
+                size: 20,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

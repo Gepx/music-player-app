@@ -253,6 +253,19 @@ class SpotifyCacheService {
     }
   }
 
+  /// Remove a single search query (all occurrences)
+  Future<void> removeSearchQuery(String query) async {
+    try {
+      final keysToRemove = _searchHistoryBox?.keys
+              .where((k) => _searchHistoryBox?.get(k) == query)
+              .toList() ??
+          [];
+      await _searchHistoryBox?.deleteAll(keysToRemove);
+    } catch (e) {
+      debugPrint('❌ Error removing search query: $e');
+    }
+  }
+
   /// Clear search history
   Future<void> clearSearchHistory() async {
     try {

@@ -88,7 +88,42 @@ class SpotifyApiService {
         },
       );
 
-      return _handleResponse(response, SpotifySearchResult.fromJson);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // Filter out null items from the results and clean nested nulls
+        final cleanedJson = <String, dynamic>{};
+        
+        for (final key in ['tracks', 'albums', 'artists', 'playlists']) {
+          if (json[key] != null) {
+            final section = json[key] as Map<String, dynamic>;
+            if (section['items'] != null) {
+              final items = (section['items'] as List)
+                  .where((item) => item != null)
+                  .map((item) {
+                    // Clean nested arrays that might contain nulls
+                    if (item is Map<String, dynamic>) {
+                      final cleanedItem = Map<String, dynamic>.from(item);
+                      if (cleanedItem['artists'] is List) {
+                        cleanedItem['artists'] = (cleanedItem['artists'] as List)
+                            .where((artist) => artist != null)
+                            .toList();
+                      }
+                      return cleanedItem;
+                    }
+                    return item;
+                  })
+                  .toList();
+              cleanedJson[key] = {...section, 'items': items};
+            }
+          }
+        }
+        
+        return SpotifySearchResult.fromJson(cleanedJson);
+      } else {
+        final error = SpotifyError.fromJson(jsonDecode(response.body));
+        throw SpotifyApiException(error.message, error.status);
+      }
     } catch (e) {
       debugPrint('❌ Search error: $e');
       rethrow;
@@ -573,7 +608,11 @@ class SpotifyApiService {
       );
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final playlists = (json['playlists']['items'] as List)
+      final playlistsContainer = json['playlists'];
+      final items = playlistsContainer is Map<String, dynamic>
+          ? playlistsContainer['items'] as List?
+          : null;
+      final playlists = (items ?? const [])
           .map((p) => SpotifyPlaylist.fromJson(p as Map<String, dynamic>))
           .toList();
 
@@ -595,13 +634,47 @@ class SpotifyApiService {
       );
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final albums = (json['albums']['items'] as List)
+      final albumsContainer = json['albums'];
+      final items = albumsContainer is Map<String, dynamic>
+          ? albumsContainer['items'] as List?
+          : null;
+      final albums = (items ?? const [])
           .map((a) => SpotifyAlbum.fromJson(a as Map<String, dynamic>))
           .toList();
 
       return albums;
     } catch (e) {
       debugPrint('❌ Get new releases error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get playlists for a specific category (e.g., 'toplists')
+  Future<List<SpotifyPlaylist>> getCategoryPlaylists(String categoryId, {int limit = 20}) async {
+    try {
+      debugPrint('📚 Getting category playlists: $categoryId');
+
+      final endpoint = SpotifyConstants.replaceId(
+        SpotifyConstants.categoryPlaylistsEndpoint,
+        categoryId,
+      );
+
+      final response = await _get(endpoint, queryParams: {
+        'limit': limit.toString(),
+      });
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final playlistsContainer = json['playlists'];
+      final items = playlistsContainer is Map<String, dynamic>
+          ? playlistsContainer['items'] as List?
+          : null;
+      final playlists = (items ?? const [])
+          .map((p) => SpotifyPlaylist.fromJson(p as Map<String, dynamic>))
+          .toList();
+
+      return playlists;
+    } catch (e) {
+      debugPrint('❌ Get category playlists error: $e');
       rethrow;
     }
   }

@@ -10,8 +10,11 @@ class EnvConfig {
     await dotenv.load(fileName: '.env');
   }
 
-  /// Spotify API Token
-  static String? get spotifyApiToken => dotenv.env['SPOTIFY_API_TOKEN'];
+  /// Spotify Client ID
+  static String? get spotifyClientId => dotenv.env['SPOTIFY_CLIENT_ID'];
+
+  /// Spotify Client Secret
+  static String? get spotifyClientSecret => dotenv.env['SPOTIFY_CLIENT_SECRET'];
 
   /// Firebase API Key
   static String? get firebaseApiKey => dotenv.env['FIREBASE_API_KEY'];
@@ -21,11 +24,13 @@ class EnvConfig {
 
   /// Check if all required environment variables are set
   static bool validateConfig() {
-    final hasSpotifyToken = spotifyApiToken != null && spotifyApiToken!.isNotEmpty;
+    final hasSpotifyCredentials = 
+        spotifyClientId != null && spotifyClientId!.isNotEmpty &&
+        spotifyClientSecret != null && spotifyClientSecret!.isNotEmpty;
     
-    if (!hasSpotifyToken) {
-      print('⚠️ Warning: SPOTIFY_API_TOKEN is not configured in .env');
-      print('Get your token from: https://developer.spotify.com/console/');
+    if (!hasSpotifyCredentials) {
+      print('⚠️ Warning: SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET is not configured in .env');
+      print('Get your credentials from: https://developer.spotify.com/dashboard');
       return false;
     }
     
