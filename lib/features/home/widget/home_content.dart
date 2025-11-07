@@ -16,9 +16,7 @@ class HomeContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Recently Played Section
-            const SectionTitle(title: 'Recently Played'),
-            const SizedBox(height: 16),
+            // Recently Played Section (conditionally renders title + grid inside)
             const RecentlyPlayedGrid(),
             const SizedBox(height: 32),
 

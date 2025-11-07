@@ -118,5 +118,38 @@ class AlbumModel extends Equatable {
         albumType,
         uri,
       ];
+
+  // -------------------- SQLite Serialization -------------------- //
+
+  /// Convert to SQLite map
+  Map<String, dynamic> toSQLite() {
+    return {
+      'id': id,
+      'spotify_id': spotifyId ?? id,
+      'title': title,
+      'artist_name': artistName,
+      'release_date': releaseDate.toIso8601String(),
+      'total_tracks': totalTracks,
+      'image_url': coverArtUrl,
+      'album_type': albumType,
+      'cached_at': DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  /// Create from SQLite map
+  factory AlbumModel.fromSQLite(Map<String, dynamic> map) {
+    return AlbumModel(
+      id: map['id'] as String,
+      spotifyId: map['spotify_id'] as String?,
+      title: map['title'] as String,
+      artistName: map['artist_name'] as String? ?? 'Unknown Artist',
+      coverArtUrl: map['image_url'] as String?,
+      releaseDate: map['release_date'] != null
+          ? DateTime.parse(map['release_date'] as String)
+          : DateTime.now(),
+      totalTracks: map['total_tracks'] as int? ?? 0,
+      albumType: map['album_type'] as String? ?? 'album',
+    );
+  }
 }
 

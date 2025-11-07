@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -9,17 +10,40 @@ import 'data/models/app/app_models.dart';
 import 'data/services/spotify/spotify_cache_service.dart';
 import 'data/services/preferences/preferences_service.dart';
 import 'data/services/spotify/spotify_auth_service.dart';
+import 'data/services/spotify/spotify_premium_auth_service.dart';
+
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 void main() async {
-  await dotenv.load(fileName: '.env');
-
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: '.env');
   // Load environment variables
   await EnvConfig.load();
-
   // Validate environment configuration
   EnvConfig.validateConfig();
+
+  // Initialize database
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else {
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      // Initialize FFI
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+  }
+
+  // Initialize WebView for desktop platforms
+  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux)) {
+    // WebView is supported on these platforms
+    debugPrint('🌐 WebView platform support enabled for desktop');
+  }
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -38,7 +62,10 @@ void main() async {
   await SpotifyCacheService.instance.initialize();
 
   // Validate Spotify API configuration
-  SpotifyAuthService.instance.validateToken();
+  await SpotifyAuthService.instance.validateToken();
+
+  // Initialize Premium Spotify for Web Playback SDK (desktop playback)
+  await SpotifyPremiumAuthService.instance.initialize();
 
   runApp(const App());
 }

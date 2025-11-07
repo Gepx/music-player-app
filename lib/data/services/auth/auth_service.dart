@@ -1,32 +1,34 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../models/user_model.dart';
 import '../../models/auth_response.dart';
-import '../database/local_database_service.dart';
 import '../database/firestore_user_service.dart';
-import '../database/firestore_service.dart';
 
 /// Comprehensive Authentication Service
-/// Handles Firebase Auth, Google Sign-In, JWT tokens, and local/cloud storage
-/// 
+/// Handles Firebase Auth, Google Sign-In, JWT tokens, and cloud storage
+///
 /// Storage Hierarchy:
-/// 1. Firebase Auth - Primary authentication
+/// 1. Firebase Auth - Primary authentication (Single Source of Truth)
 /// 2. Firestore - Cloud user data (synced across devices)
-/// 3. SQLite - Local user data (offline access)
-/// 4. Secure Storage - JWT tokens (sensitive data)
+/// 3. Secure Storage - JWT tokens (sensitive data)
+///
+/// ⛔ REMOVED: SQLite and Preferences from this auth flow.
+///
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
 
   // Services
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleInitialized = false;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  final LocalDatabaseService _localDb = LocalDatabaseService.instance;
   final FirestoreUserService _firestoreUser = FirestoreUserService.instance;
+  // ⛔ REMOVED: final PreferencesService _prefs = PreferencesService.instance;
 
   // Secure storage keys
   static const String _jwtTokenKey = 'jwt_token';
@@ -36,6 +38,7 @@ class AuthService {
   // -------------------- Getters -------------------- //
 
   /// Stream of authentication state changes
+  /// THIS IS THE SINGLE SOURCE OF TRUTH FOR YOUR APP'S UI.
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Get current Firebase user
@@ -53,6 +56,10 @@ class AuthService {
     String? displayName,
   }) async {
     try {
+      if (kIsWeb) {
+        await _auth.setPersistence(Persistence.LOCAL);
+      }
+
       // Create user in Firebase
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -70,11 +77,16 @@ class AuthService {
         provider: 'email',
       );
 
-      // Save to all storage layers
+      // Save to Firestore
       await _syncUserData(user);
 
+      // ⛔ REMOVED: _prefs.saveLoginState(true, user.id);
+
       debugPrint('✅ User signed up successfully: ${user.email}');
-      return AuthResponse.success(user, message: 'Account created successfully');
+      return AuthResponse.success(
+        user,
+        message: 'Account created successfully',
+      );
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ Sign up error: ${e.code} - ${e.message}');
       return AuthResponse.failure(
@@ -93,6 +105,10 @@ class AuthService {
     required String password,
   }) async {
     try {
+      if (kIsWeb) {
+        await _auth.setPersistence(Persistence.LOCAL);
+      }
+
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -104,8 +120,10 @@ class AuthService {
         provider: 'email',
       );
 
-      // Save to all storage layers and update last login
+      // Save to Firestore and update last login
       await _syncUserData(user);
+
+      // ⛔ REMOVED: _prefs.saveLoginState(true, user.id);
 
       debugPrint('✅ User signed in successfully: ${user.email}');
       return AuthResponse.success(user, message: 'Signed in successfully');
@@ -117,49 +135,84 @@ class AuthService {
       );
     } catch (e) {
       debugPrint('❌ Unexpected sign in error: $e');
-      return AuthResponse.failure(message: 'An unexpected error occurred');
+      return AuthResponse.failure(message: 'An unexpected error occurred: $e');
     }
   }
 
-  // -------------------- Google Sign-In -------------------- //
+  // -------------------- Third Party Provider -------------------- //
 
   /// Sign in with Google
   Future<AuthResponse> signInWithGoogle() async {
     try {
-      // Trigger Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (kIsWeb) {
+        await _auth.setPersistence(Persistence.LOCAL);
 
-      if (googleUser == null) {
-        // User cancelled the sign-in
-        return AuthResponse.failure(message: 'Google sign-in cancelled');
+        final provider =
+            GoogleAuthProvider()
+              ..setCustomParameters({'prompt': 'select_account'});
+        final userCredential = await _auth.signInWithPopup(provider);
+        final user = await _createUserModel(
+          userCredential.user!,
+          provider: 'google',
+        );
+        await _syncUserData(user);
+        return AuthResponse.success(
+          user,
+          message: 'Successfully signed in with Google',
+        );
       }
 
-      // Obtain auth details
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await _ensureGoogleInitialized();
 
-      // Create Firebase credential
+      GoogleSignInAccount? googleUser;
+
+      try {
+        final future = _googleSignIn.attemptLightweightAuthentication();
+        if (future != null) {
+          googleUser = await future;
+        }
+      } on GoogleSignInException catch (e) {
+        if (e.code != GoogleSignInExceptionCode.canceled) {
+          debugPrint('⚠️ Lightweight Google auth failed: ${e.code}');
+        }
+      }
+
+      googleUser ??= await _googleSignIn.authenticate();
+
+      final googleAuth = googleUser.authentication;
+      if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
+        debugPrint('❌ Google auth missing ID token');
+        return AuthResponse.failure(
+          message: 'Unable to retrieve Google ID token',
+        );
+      }
+
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase
       final userCredential = await _auth.signInWithCredential(credential);
 
-      // Create user model
       final user = await _createUserModel(
         userCredential.user!,
         provider: 'google',
       );
 
-      // Save to all storage layers and update last login
       await _syncUserData(user);
 
       debugPrint('✅ Google sign-in successful: ${user.email}');
       return AuthResponse.success(user, message: 'Signed in with Google');
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        debugPrint('⚠️ Google sign-in cancelled by user');
+        return AuthResponse.failure(message: 'Google sign-in cancelled');
+      }
+      debugPrint('❌ Google sign-in error: ${e.code} - ${e.description}');
+      return AuthResponse.failure(
+        message: e.description ?? 'Google sign-in failed',
+      );
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Google sign-in error: ${e.code} - ${e.message}');
+      debugPrint('❌ Google sign-in Firebase error: ${e.code} - ${e.message}');
       return AuthResponse.failure(
         message: _getAuthErrorMessage(e.code),
         errorCode: e.code,
@@ -170,7 +223,80 @@ class AuthService {
     }
   }
 
+  Future<void> _ensureGoogleInitialized() async {
+    if (_googleInitialized) return;
+    await _googleSignIn.initialize();
+    _googleInitialized = true;
+  }
+
+  Future<AuthResponse> signInWithFacebook() async {
+    try {
+      if (kIsWeb) {
+        await _auth.setPersistence(Persistence.LOCAL);
+
+        await FacebookAuth.instance.webAndDesktopInitialize(
+          appId: '844484934746673',
+          cookie: true,
+          xfbml: true,
+          version: 'v16.0',
+        );
+
+        final provider = FacebookAuthProvider();
+        provider.addScope('email');
+
+        final userCredential = await _auth.signInWithPopup(provider);
+        final user = await _createUserModel(
+          userCredential.user!,
+          provider: 'facebook',
+        );
+
+        await _syncUserData(user);
+
+        return AuthResponse.success(
+          user,
+          message: 'Successfully signed in with Facebook!',
+        );
+      }
+
+      final LoginResult facebookUser = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (facebookUser.status == LoginStatus.success) {
+        final accessToken = facebookUser.accessToken!;
+        final credential = FacebookAuthProvider.credential(
+          accessToken.tokenString,
+        );
+
+        final userCredential = await _auth.signInWithCredential(credential);
+
+        final user = await _createUserModel(
+          userCredential.user!,
+          provider: 'facebook',
+        );
+
+        await _syncUserData(user);
+
+        return AuthResponse(
+          user: user,
+          message: 'Signed in with Facebook',
+          success: true,
+        );
+      } else if (facebookUser.status == LoginStatus.cancelled) {
+        return AuthResponse.failure(message: 'Facebook sign-in cancelled');
+      } else {
+        return AuthResponse.failure(
+          message: 'Facebook sign-in failed: ${facebookUser.message}',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Facebook sign-in error: $e');
+      return AuthResponse.failure(message: 'Facebook sign-in failed');
+    }
+  }
+
   // -------------------- JWT Token Management -------------------- //
+  // (This section is fine, it's about secure token storage, not auth state)
 
   /// Store JWT tokens securely
   Future<void> storeTokens({
@@ -191,7 +317,6 @@ class AuthService {
       debugPrint('✅ JWT tokens stored securely');
     } catch (e) {
       debugPrint('❌ Error storing tokens: $e');
-      rethrow;
     }
   }
 
@@ -222,12 +347,12 @@ class AuthService {
       if (user == null) return null;
 
       final idToken = await user.getIdToken(forceRefresh);
-      
+
       // Store the token
       if (idToken != null) {
         await storeTokens(jwtToken: idToken);
       }
-      
+
       return idToken;
     } catch (e) {
       debugPrint('❌ Error getting Firebase ID token: $e');
@@ -249,38 +374,22 @@ class AuthService {
 
   // -------------------- User Management -------------------- //
 
-  /// Get current user from storage (local first, then cloud)
+  /// Get current user from storage (cloud first)
   Future<UserModel?> getCurrentUser() async {
     try {
-      // Try to get from local database first (fastest)
-      final localUser = await _localDb.getCurrentUser();
-      
-      if (localUser != null) {
-        // Attach JWT token from secure storage
-        final jwtToken = await getJwtToken();
-        final refreshToken = await getRefreshToken();
-        
-        return localUser.copyWith(
-          jwtToken: jwtToken,
-          refreshToken: refreshToken,
-        );
-      }
-      
-      // If not in local DB but Firebase user exists
+      // The ONLY check we need is for the currentFirebaseUser.
       if (currentFirebaseUser != null) {
         // Try to fetch from Firestore
         try {
           final firestoreUser = await _firestoreUser.getUserById(
             currentFirebaseUser!.uid,
           );
-          
+
           if (firestoreUser != null) {
-            // Found in Firestore, save to local and return
-            await _localDb.saveUser(firestoreUser);
-            
+            // Found in Firestore, attach tokens and return
             final jwtToken = await getJwtToken();
             final refreshToken = await getRefreshToken();
-            
+
             return firestoreUser.copyWith(
               jwtToken: jwtToken,
               refreshToken: refreshToken,
@@ -289,13 +398,19 @@ class AuthService {
         } catch (e) {
           debugPrint('⚠️ Could not fetch from Firestore: $e');
         }
-        
-        // Not in Firestore either, create from Firebase Auth
+
+        // Not in Firestore, create from Firebase Auth
+        debugPrint('Creating user model from currentFirebaseUser');
         final user = await _createUserModel(currentFirebaseUser!);
-        await _syncUserData(user);
+        await _syncUserData(user); // Sync to Firestore
+
+        // ⛔ REMOVED: _prefs.saveLoginState(true, user.id);
+
         return user;
       }
-      
+
+      // No Firebase user, so definitely not logged in.
+      // ⛔ REMOVED: _prefs.clearLoginState();
       return null;
     } catch (e) {
       debugPrint('❌ Error getting current user: $e');
@@ -304,14 +419,11 @@ class AuthService {
   }
 
   /// Send password reset email
-  Future<AuthResponse> sendPasswordResetEmail(String email) async {
+  Future<AuthResponse> sendPasswordResetEmail({required String email}) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
       debugPrint('✅ Password reset email sent to: $email');
-      return AuthResponse.success(
-        null,
-        message: 'Password reset email sent',
-      );
+      return AuthResponse.success(null, message: 'Password reset email sent');
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ Password reset error: ${e.code}');
       return AuthResponse.failure(
@@ -341,7 +453,7 @@ class AuthService {
         await user.updatePhotoURL(photoUrl);
       }
 
-      // Update in all storage layers
+      // Update in Firestore
       final updatedUser = await _createUserModel(user);
       await _syncUserData(updatedUser);
 
@@ -358,9 +470,11 @@ class AuthService {
   /// Sign out from all services
   Future<void> signOut() async {
     try {
-      // Sign out from Google if signed in
-      if (await _googleSignIn.isSignedIn()) {
+      // Sign out from Google if possible
+      try {
         await _googleSignIn.signOut();
+      } catch (e) {
+        debugPrint('⚠️ Google sign-out skipped: $e');
       }
 
       // Sign out from Firebase
@@ -368,9 +482,6 @@ class AuthService {
 
       // Clear tokens
       await clearTokens();
-
-      // Clear local database (optional - keep user data for offline access)
-      // await _localDb.clearAllUsers();
 
       debugPrint('✅ User signed out successfully');
     } catch (e) {
@@ -397,18 +508,16 @@ class AuthService {
         debugPrint('⚠️ Could not delete from Firestore: $e');
       }
 
-      // Delete from local database
-      await _localDb.deleteUser(userId);
-
       // Clear tokens
       await clearTokens();
 
-      // Delete from Firebase (must be last)
       await user.delete();
 
       // Sign out from Google if needed
-      if (await _googleSignIn.isSignedIn()) {
+      try {
         await _googleSignIn.signOut();
+      } catch (e) {
+        debugPrint('⚠️ Google sign-out skipped: $e');
       }
 
       debugPrint('✅ User account deleted from all storage');
@@ -452,26 +561,19 @@ class AuthService {
     );
   }
 
-  /// Sync user data across all storage layers
-  /// Local (SQLite) → Firestore → Secure Storage (tokens)
+  /// Sync user data to Firestore
   Future<void> _syncUserData(UserModel user) async {
     try {
-      // 1. Save to local database (SQLite)
-      await _localDb.saveUser(user);
-      debugPrint('✅ User saved to local database');
-
-      // 2. Save to Firestore (cloud sync)
+      // 1. Save to Firestore (cloud sync)
       try {
         await _firestoreUser.saveUser(user);
         await _firestoreUser.updateLastLogin(user.id);
         debugPrint('✅ User synced to Firestore');
       } catch (e) {
         debugPrint('⚠️ Could not sync to Firestore (offline?): $e');
-        // Don't fail if Firestore sync fails (offline support)
       }
 
-      // 3. Tokens are already handled in createUserModel and storeTokens
-      debugPrint('✅ User data fully synced across all storage layers');
+      debugPrint('✅ User data synced to Firestore');
     } catch (e) {
       debugPrint('❌ Error syncing user data: $e');
       rethrow;
@@ -481,62 +583,6 @@ class AuthService {
   /// Watch user changes in real-time from Firestore
   Stream<UserModel?> watchUser(String userId) {
     return _firestoreUser.watchUser(userId);
-  }
-
-  /// Force sync from Firestore to local
-  Future<void> syncFromFirestore(String userId) async {
-    try {
-      debugPrint('🔄 Syncing user from Firestore...');
-      
-      final firestoreUser = await _firestoreUser.getUserById(userId);
-      
-      if (firestoreUser != null) {
-        await _localDb.saveUser(firestoreUser);
-        debugPrint('✅ User synced from Firestore to local');
-      } else {
-        debugPrint('⚠️ User not found in Firestore');
-      }
-    } catch (e) {
-      debugPrint('❌ Error syncing from Firestore: $e');
-      rethrow;
-    }
-  }
-
-  /// Check health of all storage layers
-  Future<Map<String, bool>> healthCheckAll() async {
-    final results = <String, bool>{};
-
-    // Check Firebase Auth
-    try {
-      results['firebaseAuth'] = _auth.currentUser != null;
-    } catch (e) {
-      results['firebaseAuth'] = false;
-    }
-
-    // Check Local Database
-    try {
-      results['localDatabase'] = await _localDb.healthCheck();
-    } catch (e) {
-      results['localDatabase'] = false;
-    }
-
-    // Check Firestore
-    try {
-      results['firestore'] = await FirestoreService.instance.healthCheck();
-    } catch (e) {
-      results['firestore'] = false;
-    }
-
-    // Check Secure Storage
-    try {
-      await _secureStorage.read(key: _userIdKey);
-      results['secureStorage'] = true;
-    } catch (e) {
-      results['secureStorage'] = false;
-    }
-
-    debugPrint('🏥 Health check results: $results');
-    return results;
   }
 
   /// Get user-friendly error messages
@@ -567,4 +613,3 @@ class AuthService {
     }
   }
 }
-

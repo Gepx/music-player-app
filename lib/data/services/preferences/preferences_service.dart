@@ -25,6 +25,9 @@ class PreferencesService {
   static const String _lastPlayedSongKey = 'last_played_song';
   static const String _lastPlaylistKey = 'last_playlist';
   static const String _notificationsEnabledKey = 'notifications_enabled';
+  static const String _userLoggedInKey = 'user_logged_in';
+  static const String _userIdKey = 'user_id';
+  static const String _onBoardingCompletedKey = 'onboarding_completed';
 
   // -------------------- Initialization -------------------- //
 
@@ -45,6 +48,31 @@ class PreferencesService {
       await init();
     }
     return _prefs!;
+  }
+
+  // OnBoarding
+  Future<bool> hasCompleteOnBoarding() async {
+    final p = await prefs;
+    return p.getBool(_onBoardingCompletedKey) ?? false;
+  }
+
+  Future<void> setOnboardingCompleted([bool value = true]) async {
+    final p = await prefs;
+    await p.setBool(_onBoardingCompletedKey, value);
+  }
+
+  // User Session
+  Future<void> saveLoginState(bool isLoggedIn, String? userId) async {
+    final p = await prefs;
+    await p.setBool(_userLoggedInKey, isLoggedIn);
+    if (userId != null) {
+      await p.setString(_userIdKey, userId);
+    }
+  }
+
+  Future<bool> checkLoginStatus() async {
+    final p = await prefs;
+    return p.getBool(_userLoggedInKey) ?? false;
   }
 
   // -------------------- Theme Settings -------------------- //
@@ -265,6 +293,13 @@ class PreferencesService {
     }
   }
 
+  // Clear User Session
+  Future<void> clearLoginState() async {
+    final p = await prefs;
+    await p.remove(_userLoggedInKey);
+    await p.remove(_userIdKey);
+  }
+
   /// Clear specific preference
   Future<bool> remove(String key) async {
     try {
@@ -276,4 +311,3 @@ class PreferencesService {
     }
   }
 }
-

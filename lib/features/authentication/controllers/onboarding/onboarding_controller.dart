@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:music_player/features/authentication/screens/login/login.dart';
+import 'package:music_player/data/services/services.dart';
+import 'package:music_player/features/authentication/screens/auth_wrapper.dart';
 
 class OnBoardingController extends GetxController {
   static OnBoardingController get instance => Get.find();
@@ -17,17 +18,20 @@ class OnBoardingController extends GetxController {
     pageController.jumpTo(index);
   }
 
-  void nextPage() {
+  void nextPage() async {
     if (currentPageIndex.value == 2) {
-      Get.offAll(const LoginScreen());
+      await PreferencesService.instance.setOnboardingCompleted(true);
+
+      Get.offAll(() => const AuthWrapper());
     } else {
       int page = currentPageIndex.value + 1;
       pageController.jumpToPage(page);
     }
   }
 
-  void skipPage() {
-    currentPageIndex.value = 2;
-    pageController.jumpToPage(2);
+  void skipPage() async {
+    await PreferencesService.instance.setOnboardingCompleted(true);
+
+    Get.offAll(() => const AuthWrapper());
   }
 }

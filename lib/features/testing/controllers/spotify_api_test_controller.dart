@@ -67,40 +67,59 @@ class SpotifyApiTestController extends GetxController {
 
     try {
       final configured = await _authService.isConfigured;
-      final token = _authService.getAccessToken();
-
       isConfigured.value = configured;
 
-      if (configured && token != null) {
-        // Mask token for security
-        final maskedToken =
-            token.length > 20
-                ? '${token.substring(0, 10)}...${token.substring(token.length - 10)}'
-                : '***masked***';
+      if (configured) {
+        // Try to get an access token
+        final token = await _authService.getAccessToken();
+        
+        if (token != null) {
+          // Mask token for security
+          final maskedToken =
+              token.length > 20
+                  ? '${token.substring(0, 10)}...${token.substring(token.length - 10)}'
+                  : '***masked***';
 
-        addResult(
-          TestResult(
-            testName: testName,
-            status: TestStatus.success,
-            message: '✅ Spotify API is configured',
-            data: {
-              'tokenPreview': maskedToken,
-              'tokenLength': token.length,
-              'source': 'Environment variable (.env)',
-              'note': 'Token is loaded from .env file',
-            },
-            timestamp: _formatTimestamp(),
-          ),
-        );
+          final tokenInfo = _authService.getTokenInfo();
+
+          addResult(
+            TestResult(
+              testName: testName,
+              status: TestStatus.success,
+              message: '✅ Spotify API is configured and token obtained',
+              data: {
+                'tokenPreview': maskedToken,
+                'tokenLength': token.length,
+                'source': 'OAuth Client Credentials Flow',
+                'note': 'Token is automatically requested using Client ID and Secret',
+                'tokenInfo': tokenInfo,
+              },
+              timestamp: _formatTimestamp(),
+            ),
+          );
+        } else {
+          addResult(
+            TestResult(
+              testName: testName,
+              status: TestStatus.error,
+              message: '❌ Failed to obtain access token',
+              data: {
+                'note': 'Check your SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET',
+                'help': 'Get credentials from: https://developer.spotify.com/dashboard',
+              },
+              timestamp: _formatTimestamp(),
+            ),
+          );
+        }
       } else {
         addResult(
           TestResult(
             testName: testName,
             status: TestStatus.error,
-            message: '❌ Spotify API token not configured',
+            message: '❌ Spotify credentials not configured',
             data: {
-              'note': 'Add SPOTIFY_API_TOKEN to your .env file',
-              'help': 'Get token from: https://developer.spotify.com/console/',
+              'note': 'Add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to your .env file',
+              'help': 'Get credentials from: https://developer.spotify.com/dashboard',
             },
             timestamp: _formatTimestamp(),
           ),
