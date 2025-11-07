@@ -47,7 +47,7 @@ class _MyAppState extends State<App> {
       themeMode: ThemeMode.system,
       theme: FAppTheme.lightTheme,
       darkTheme: FAppTheme.darkTheme,
-      home: home,
+      home: SpotifyApiTestScreen(),
     );
   }
 }
