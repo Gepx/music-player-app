@@ -39,10 +39,61 @@ class _RecentlyPlayedGridState extends State<RecentlyPlayedGrid> {
   Future<void> _load() async {
     final rows = await RecentPlaysService.instance.getRecent(limit: 8);
     if (!mounted) return;
+    
+    // Set initial items (may have missing images)
     setState(() {
       _items = rows;
       _loading = false;
     });
+    
+    // Fetch missing images in the background
+    _fetchMissingImages(rows);
+  }
+
+  Future<void> _fetchMissingImages(List<Map<String, dynamic>> items) async {
+    // Find items missing images
+    final itemsWithoutImages = items.where((item) {
+      final imageUrl = item['imageUrl'] as String?;
+      return imageUrl == null || imageUrl.isEmpty;
+    }).toList();
+
+    if (itemsWithoutImages.isEmpty) return;
+
+    // Fetch full track data for items missing images
+    for (final item in itemsWithoutImages) {
+      final trackId = item['id'] as String?;
+      if (trackId == null) continue;
+
+      try {
+        // Fetch full track data from Spotify API
+        final track = await _spotify.getTrack(trackId);
+        
+        // Check if track has album images
+        if (track.album?.images.isNotEmpty == true) {
+          final imageUrl = track.album!.images.first.url;
+          
+          // Update the stored data in RecentPlaysService
+          // This will update the existing entry with the image URL
+          await RecentPlaysService.instance.addRecent(track);
+          
+          // Update local state to show image immediately
+          if (mounted) {
+            setState(() {
+              final index = _items.indexWhere((i) => i['id'] == trackId);
+              if (index != -1) {
+                _items[index] = {
+                  ..._items[index],
+                  'imageUrl': imageUrl,
+                };
+              }
+            });
+          }
+        }
+      } catch (e) {
+        // Silently handle errors - image will remain as gradient placeholder
+        debugPrint('Failed to fetch image for track $trackId: $e');
+      }
+    }
   }
 
   void _onPlaybackChange() {

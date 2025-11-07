@@ -43,12 +43,14 @@ class _WebPlaybackHostState extends State<WebPlaybackHost> {
     if (track == null) return const SizedBox.shrink();
 
     // Keep the player mounted but visually unobtrusive
+    // Use key to force rebuild when track changes (important for hot reload)
     return Offstage(
       offstage: false,
       child: SizedBox(
         height: 0,
         width: 0,
         child: WebPlaybackPlayerFactory(
+          key: ValueKey('player_${track.id}'), // Force rebuild on track change
           trackUri: 'spotify:track:${track.id}',
         ),
       ),

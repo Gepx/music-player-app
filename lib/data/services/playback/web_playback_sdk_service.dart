@@ -19,11 +19,16 @@ class WebPlaybackSDKService extends ChangeNotifier {
   int _currentIndex = 0;
   String? _deviceId;
   
+  // Pending track to play once player is ready
+  SpotifyTrack? _pendingTrack;
+  List<SpotifyTrack>? _pendingPlaylist;
+  
   // Callback to control the actual player (set by WebPlaybackPlayerWeb)
   VoidCallback? _onTogglePlayPause;
   VoidCallback? _onPlayNext;
   VoidCallback? _onPlayPrevious;
   void Function(String uri)? _onPlayUri;
+  void Function(int positionMs)? _onSeek;
 
   // Getters
   SpotifyTrack? get currentTrack => _currentTrack;
@@ -60,6 +65,33 @@ class WebPlaybackSDKService extends ChangeNotifier {
     _deviceId = deviceId;
     debugPrint('🎵 Device ID set: $deviceId');
     notifyListeners();
+    
+    // If there's a pending track and callbacks are ready, try to play it
+    if (_pendingTrack != null && _onPlayUri != null) {
+      debugPrint('🔄 Device ready, playing pending track: ${_pendingTrack!.name}');
+      final pending = _pendingTrack;
+      final pendingPlaylist = _pendingPlaylist;
+      _pendingTrack = null;
+      _pendingPlaylist = null;
+      // Use the existing playTrack logic but don't set as pending again
+      _playPendingTrack(pending!, playlist: pendingPlaylist);
+    } else if (_pendingTrack != null) {
+      debugPrint('⏳ Device ready but callbacks not set yet, waiting...');
+    }
+  }
+  
+  /// Play a pending track (internal method, doesn't set pending state)
+  void _playPendingTrack(SpotifyTrack track, {List<SpotifyTrack>? playlist}) {
+    if (_onPlayUri != null && _deviceId != null) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_onPlayUri != null && _deviceId != null) {
+          debugPrint('▶️ Playing pending track via callback: ${track.name}');
+          _onPlayUri!.call('spotify:track:${track.id}');
+        }
+      });
+    } else {
+      debugPrint('⚠️ Cannot play pending track - callbacks or device not ready');
+    }
   }
 
   /// Play a track
@@ -89,6 +121,23 @@ class WebPlaybackSDKService extends ChangeNotifier {
       // Log to recent plays
       RecentPlaysService.instance.addRecent(track);
 
+      // Trigger playback if callbacks are set (for web playback SDK)
+      // This ensures playback works after hot reload
+      if (_onPlayUri != null && _deviceId != null) {
+        // Small delay to ensure player is fully ready
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_onPlayUri != null && _deviceId != null) {
+            _onPlayUri!.call('spotify:track:${track.id}');
+          }
+        });
+      } else {
+        // Player not ready yet, store as pending to play once ready
+        debugPrint('⚠️ Playback callbacks not ready yet (deviceId: $_deviceId, onPlayUri: ${_onPlayUri != null})');
+        debugPrint('📋 Queuing track to play once player is ready: ${track.name}');
+        _pendingTrack = track;
+        _pendingPlaylist = playlist;
+      }
+
       debugPrint('✅ Track loaded: ${track.name}');
     } catch (e) {
       debugPrint('❌ Error playing track: $e');
@@ -103,11 +152,23 @@ class WebPlaybackSDKService extends ChangeNotifier {
     VoidCallback? onPlayNext,
     VoidCallback? onPlayPrevious,
     void Function(String uri)? onPlayUri,
+    void Function(int positionMs)? onSeek,
   }) {
     _onTogglePlayPause = onTogglePlayPause;
     _onPlayNext = onPlayNext;
     _onPlayPrevious = onPlayPrevious;
     _onPlayUri = onPlayUri;
+    _onSeek = onSeek;
+    
+    // If callbacks are now set and there's a pending track, try to play it
+    if (_onPlayUri != null && _deviceId != null && _pendingTrack != null) {
+      debugPrint('🔄 Callbacks ready, playing pending track: ${_pendingTrack!.name}');
+      final pending = _pendingTrack;
+      final pendingPlaylist = _pendingPlaylist;
+      _pendingTrack = null;
+      _pendingPlaylist = null;
+      _playPendingTrack(pending!, playlist: pendingPlaylist);
+    }
   }
 
   /// Toggle play/pause
@@ -176,6 +237,12 @@ class WebPlaybackSDKService extends ChangeNotifier {
   void seekTo(Duration position) {
     _currentPosition = position;
     debugPrint('⏩ Seeking to: ${position.inSeconds}s');
+    
+    // Actually seek the player if callback is available
+    if (_onSeek != null) {
+      _onSeek!(position.inMilliseconds);
+    }
+    
     notifyListeners();
   }
 
@@ -188,6 +255,12 @@ class WebPlaybackSDKService extends ChangeNotifier {
   /// Update playing state (called from WebView)
   void updatePlayingState(bool playing) {
     _isPlaying = playing;
+    notifyListeners();
+  }
+
+  /// Update total duration (called from WebView)
+  void updateTotalDuration(Duration duration) {
+    _totalDuration = duration;
     notifyListeners();
   }
 

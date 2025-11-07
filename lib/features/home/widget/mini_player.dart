@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   late Animation<double> _heightAnimation;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
   final Map<String, String> _imageCache = {};
+  Timer? _positionUpdateTimer;
 
   @override
   void initState() {
@@ -44,7 +46,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     
     _heightAnimation = Tween<double>(
       begin: 0.0,
-      end: 108.0, // Increased to accommodate progress bar and time without overflow
+      end: 120.0, // Increased to accommodate all content without overflow
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOut,
@@ -58,6 +60,27 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     if (_getCurrentTrack() != null) {
       _animationController.forward();
     }
+    
+    // Start position update timer for dynamic time updates
+    _startPositionUpdateTimer();
+  }
+  
+  void _startPositionUpdateTimer() {
+    _positionUpdateTimer?.cancel();
+    _positionUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (mounted && _getCurrentTrack() != null) {
+        // Always update UI to reflect position changes from player_state_changed listener
+        // Position updates come from the Web Playback SDK's player_state_changed event
+        if (!_isMobilePlatform) {
+          // For web, position is updated by player_state_changed listener
+          // Timer just triggers UI refresh
+          setState(() {});
+        } else if (_isMobilePlatform && _embedService.currentTrack != null) {
+          // For mobile, we can't get real-time position, but we can still update UI
+          setState(() {});
+        }
+      }
+    });
   }
 
   void _checkPlatform() {
@@ -70,6 +93,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _positionUpdateTimer?.cancel();
     _embedService.removeListener(_onStateChanged);
     _webPlaybackService.removeListener(_onStateChanged);
     _animationController.dispose();
@@ -80,13 +104,20 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     final track = _getCurrentTrack();
     if (track != null && !_animationController.isCompleted) {
       _animationController.forward();
+      _startPositionUpdateTimer(); // Restart timer when track starts
     } else if (track == null && _animationController.isCompleted) {
       _animationController.reverse();
+      _positionUpdateTimer?.cancel(); // Stop timer when no track
     }
     if (mounted) {
-      setState(() {});
-      // Try to fetch album image if missing
-      _ensureImage(track);
+      // Defer setState to avoid calling during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+          // Try to fetch album image if missing
+          _ensureImage(track);
+        }
+      });
     }
   }
 
@@ -127,11 +158,14 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
 
   void _togglePlayPause() {
     if (_isMobilePlatform) {
-      // For mobile embed player, open the full Now Playing page
-      // since we can't control the iframe directly
+      // For mobile embed player, we can't control the iframe directly
+      // But we can still toggle by opening/closing the Now Playing page
+      // However, since user wants it to work directly, we'll just open the page
+      // where they can control playback
       _openNowPlayingPage();
     } else {
       _webPlaybackService.togglePlayPause();
+      setState(() {}); // Update UI immediately
     }
   }
 
@@ -187,9 +221,20 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     return AnimatedBuilder(
       animation: _heightAnimation,
       builder: (context, child) {
-        return SizedBox(
-          height: _heightAnimation.value,
-          child: _heightAnimation.value > 0 ? child : null,
+        if (_heightAnimation.value <= 0) {
+          return const SizedBox.shrink();
+        }
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: _heightAnimation.value,
+            minHeight: 0,
+          ),
+          child: SizedBox(
+            height: _heightAnimation.value,
+            child: ClipRect(
+              child: child,
+            ),
+          ),
         );
       },
       child: GestureDetector(
@@ -202,10 +247,11 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Main row with album art, info, and controls
                 Row(
@@ -213,8 +259,8 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                     // Album art
                     if (imageUrl != null)
                       Container(
-                        width: 56,
-                        height: 56,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
                           image: DecorationImage(
@@ -225,8 +271,8 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                       )
                     else
                       Container(
-                        width: 56,
-                        height: 56,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
@@ -236,7 +282,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Center(
-                          child: Icon(Iconsax.music, color: FColors.textWhite, size: 24),
+                          child: Icon(Iconsax.music, color: FColors.textWhite, size: 22),
                         ),
                       ),
                     const SizedBox(width: 12),
@@ -279,36 +325,36 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Iconsax.previous, size: 20),
+                          icon: const Icon(Iconsax.previous, size: 18),
                           color: FColors.textWhite,
                           onPressed: _playPrevious,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
                         ),
                         IconButton(
                           icon: Icon(
                             isPlaying ? Iconsax.pause : Iconsax.play,
-                            size: 24,
+                            size: 22,
                           ),
                           color: FColors.primary,
                           onPressed: _togglePlayPause,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
+                            minWidth: 36,
+                            minHeight: 36,
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Iconsax.next, size: 20),
+                          icon: const Icon(Iconsax.next, size: 18),
                           color: FColors.textWhite,
                           onPressed: _playNext,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
                         ),
                       ],
@@ -327,7 +373,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 4),
                         SliderTheme(
                           data: SliderTheme.of(context).copyWith(
                             trackHeight: 2.0,
@@ -340,18 +386,32 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                           ),
                           child: Slider(
                             value: progress.clamp(0.0, 1.0),
+                            onChangeStart: !_isMobilePlatform
+                                ? (value) {
+                                    // Pause updates while dragging
+                                    _positionUpdateTimer?.cancel();
+                                  }
+                                : null,
                             onChanged: !_isMobilePlatform
                                 ? (value) {
                                     final newPosition = Duration(
                                       milliseconds: (value * totalDuration.inMilliseconds).round(),
                                     );
                                     _seekTo(newPosition);
+                                    // Update UI immediately while dragging
+                                    setState(() {});
+                                  }
+                                : null,
+                            onChangeEnd: !_isMobilePlatform
+                                ? (value) {
+                                    // Resume updates after dragging
+                                    _startPositionUpdateTimer();
                                   }
                                 : null,
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.only(top: 2.0, left: 4.0, right: 4.0),
+                          padding: const EdgeInsets.only(top: 1.0, left: 4.0, right: 4.0, bottom: 0),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
