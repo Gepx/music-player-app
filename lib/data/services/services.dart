@@ -21,3 +21,6 @@ export 'spotify/spotify_services.dart';
 
 // Storage Services
 export 'storage/storage_service.dart';
+
+// Analytics Services
+export 'analytics/firebase_analytics.dart';
