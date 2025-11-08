@@ -25,10 +25,13 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   final WebPlaybackSDKService _sdkService = WebPlaybackSDKService.instance;
   // ignore: unused_field
   bool _isLoading = true;
+  // ignore: unused_field
   bool _sdkReady = false;
   dynamic _player; // Store reference to the Spotify player
   Timer? _positionPollTimer; // Timer to poll player position
   bool _isDisposed = false; // Track if widget is disposed
+  static dynamic _globalPlayer; // Global reference to prevent multiple players
+  static String? _lastTransferredDeviceId; // Track device to avoid redundant transfers
 
   @override
   void initState() {
@@ -100,8 +103,17 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   Future<void> _createPlayer() async {
     try {
       // Disconnect any existing player first to avoid conflicts
+      // This includes the global player if it exists
+      if (_globalPlayer != null && _globalPlayer != _player) {
+        try {
+          _globalPlayer.callMethod('disconnect');
+        } catch (e) {
+          debugPrint('⚠️ Error disconnecting global player: $e');
+        }
+        _globalPlayer = null;
+      }
       await _disconnectPlayer();
-
+      
       final token = await _sdkService.getAccessToken();
       if (token == null) {
         debugPrint('❌ No access token available');
@@ -148,6 +160,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
 
       // Create player
       _player = js.JsObject(playerConstructor as js.JsFunction, [options]);
+      _globalPlayer = _player; // Store as global reference
 
       // Set up control callbacks for the service
       _sdkService.setPlayerControls(
@@ -195,33 +208,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         }
         
         widget.onReady?.call();
-        
-        // Check if there's a current track that needs to be played
-        final currentTrack = _sdkService.currentTrack;
-        final trackIdFromUri = widget.trackUri.replaceAll('spotify:track:', '');
-        
-        if (currentTrack != null) {
-          final currentUri = 'spotify:track:${currentTrack.id}';
-          final uriToPlay = currentUri;
-
-          // Always attempt to play the current track after a short delay so the device can register
-          debugPrint('▶️ Ensuring current track is playing: ${currentTrack.name}');
-          Future.delayed(const Duration(milliseconds: 750), () {
-            if (mounted && !_isDisposed) {
-              _playTrack(deviceId, token, trackUri: uriToPlay);
-            }
-          });
-        } else {
-          // No current track stored in service; fall back to widget track URI if available
-          if (widget.trackUri.isNotEmpty) {
-            debugPrint('⚠️ No current track in service, attempting to play widget URI: $trackIdFromUri');
-            Future.delayed(const Duration(milliseconds: 750), () {
-              if (mounted && !_isDisposed) {
-                _playTrack(deviceId, token);
-              }
-            });
-          }
-        }
+        debugPrint('▶️ Player ready – waiting for service to trigger playback.');
       })]);
 
       _player.callMethod('addListener', ['not_ready', js.allowInterop((data) {
@@ -233,12 +220,16 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         
         final position = state['position'] as int?;
         final paused = state['paused'] as bool?;
+        final duration = state['duration'] as int?;
         
         if (position != null) {
           _sdkService.updatePosition(Duration(milliseconds: position));
         }
         if (paused != null) {
           _sdkService.updatePlayingState(!paused);
+        }
+        if (duration != null && duration > 0) {
+          _sdkService.updateTotalDuration(Duration(milliseconds: duration));
         }
       })]);
 
@@ -343,7 +334,11 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   Future<void> _disconnectPlayer() async {
     if (_player != null) {
       try {
-        debugPrint('🔌 Disconnecting player...');
+        debugPrint('🔌 Disconnecting existing player...');
+        // Cancel position polling
+        _positionPollTimer?.cancel();
+        _positionPollTimer = null;
+        
         // Remove all listeners first
         try {
           _player.callMethod('removeListener', ['ready']);
@@ -364,82 +359,22 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
           debugPrint('⚠️ Error disconnecting player: $e');
         }
         
+        final oldPlayer = _player;
         _player = null;
+        if (_globalPlayer == oldPlayer) {
+          _globalPlayer = null;
+        }
+        _lastTransferredDeviceId = null;
         _sdkReady = false;
         debugPrint('✅ Player disconnected');
       } catch (e) {
         debugPrint('❌ Error during player disconnect: $e');
+        final oldPlayer = _player;
         _player = null;
-      }
-    }
-  }
-
-  Future<void> _playTrack(String deviceId, String token, {String? trackUri}) async {
-    try {
-      final uri = trackUri ?? widget.trackUri;
-      debugPrint('🎵 Playing track: $uri');
-
-      // Ensure playback is transferred to this device
-      await _transferPlayback(deviceId, token);
-
-      final response = await html.HttpRequest.request(
-        'https://api.spotify.com/v1/me/player/play?device_id=$deviceId',
-        method: 'PUT',
-        requestHeaders: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        sendData: '{"uris": ["$uri"]}',
-      );
-
-      if (response.status == 204 || response.status == 200) {
-        debugPrint('✅ Track started playing');
-      } else {
-        debugPrint('❌ Failed to play track: ${response.status}');
-        debugPrint('Response: ${response.responseText}');
-      }
-    } catch (e) {
-      debugPrint('❌ Error playing track: $e');
-    }
-  }
-
-  Future<void> _transferPlayback(String deviceId, String token) async {
-    try {
-      final resp = await html.HttpRequest.request(
-        'https://api.spotify.com/v1/me/player',
-        method: 'PUT',
-        requestHeaders: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        sendData: '{"device_ids":["$deviceId"],"play":true}',
-      );
-
-      if (resp.status == 204) {
-        debugPrint('✅ Playback transferred to device');
-      } else {
-        debugPrint('⚠️ Transfer playback returned ${resp.status}');
-        debugPrint('Response: ${resp.responseText}');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Transfer playback failed: $e');
-    }
-  }
-
-  @override
-  void didUpdateWidget(WebPlaybackPlayerWeb oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.trackUri != widget.trackUri && _sdkReady && !_isDisposed) {
-      final deviceId = _sdkService.deviceId;
-      if (deviceId != null && _player != null) {
-        _sdkService.getAccessToken().then((token) {
-          if (token != null && mounted && !_isDisposed) {
-            _playTrack(deviceId, token);
-          }
-        });
-      } else if (deviceId == null) {
-        // Device not ready yet, wait for ready event
-        debugPrint('⚠️ Device ID not available yet, waiting for ready event...');
+        if (_globalPlayer == oldPlayer) {
+          _globalPlayer = null;
+        }
+        _lastTransferredDeviceId = null;
       }
     }
   }
@@ -461,7 +396,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         // Handle the promise
         promise.callMethod('then', [
           js.allowInterop((state) {
-            if (state != null) {
+            if (state != null && !_isDisposed) {
               final stateObj = state as js.JsObject;
               final position = stateObj['position'] as int?;
               final paused = stateObj['paused'] as bool?;
@@ -488,6 +423,65 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         // This is expected during initialization
       }
     });
+  }
+
+  Future<void> _playTrack(String deviceId, String token) async {
+    try {
+      debugPrint('🎵 Playing track: ${widget.trackUri}');
+
+      // Ensure playback is transferred to this device
+      await _transferPlayback(deviceId, token);
+
+      final response = await html.HttpRequest.request(
+        'https://api.spotify.com/v1/me/player/play?device_id=$deviceId',
+        method: 'PUT',
+        requestHeaders: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        sendData: '{"uris": ["${widget.trackUri}"]}',
+      );
+
+      if (response.status == 204 || response.status == 200) {
+        debugPrint('✅ Track started playing');
+      } else {
+        debugPrint('❌ Failed to play track: ${response.status}');
+        debugPrint('Response: ${response.responseText}');
+        _sdkService.queueCurrentTrackForRetry();
+      }
+    } catch (e) {
+      debugPrint('❌ Error playing track: $e');
+      _sdkService.queueCurrentTrackForRetry();
+    }
+  }
+
+  Future<void> _transferPlayback(String deviceId, String token) async {
+    if (_lastTransferredDeviceId == deviceId) {
+      debugPrint('🔁 Playback already active on device $deviceId, skipping transfer.');
+      return;
+    }
+
+    try {
+      final resp = await html.HttpRequest.request(
+        'https://api.spotify.com/v1/me/player',
+        method: 'PUT',
+        requestHeaders: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        sendData: '{"device_ids":["$deviceId"],"play":true}',
+      );
+
+      if (resp.status == 204) {
+        debugPrint('✅ Playback transferred to device');
+        _lastTransferredDeviceId = deviceId;
+      } else {
+        debugPrint('⚠️ Transfer playback returned ${resp.status}');
+        debugPrint('Response: ${resp.responseText}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Transfer playback failed: $e');
+    }
   }
 
   @override

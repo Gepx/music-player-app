@@ -38,9 +38,10 @@ void main() async {
   }
 
   // Initialize WebView for desktop platforms
-  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.windows ||
-      defaultTargetPlatform == TargetPlatform.linux)) {
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux)) {
     // WebView is supported on these platforms
     debugPrint('🌐 WebView platform support enabled for desktop');
   }
