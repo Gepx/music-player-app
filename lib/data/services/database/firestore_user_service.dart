@@ -114,10 +114,10 @@ class FirestoreUserService {
     required bool isPremium,
   }) async {
     try {
-      await _firestore.users.doc(userId).update({
+      await _firestore.users.doc(userId).set({
         'isPremium': isPremium,
         'premiumSince': isPremium ? DateTime.now().toIso8601String() : null,
-      });
+      }, SetOptions(merge: true));
       debugPrint('✅ Premium status updated in Firestore: $isPremium');
     } catch (e) {
       debugPrint('❌ Error updating premium status in Firestore: $e');
