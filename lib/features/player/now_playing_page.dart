@@ -6,11 +6,13 @@ import 'package:music_player/data/models/spotify/spotify_track.dart';
 import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
 import 'package:music_player/features/player/widgets/queue_sheet.dart';
-import 'package:music_player/features/player/widgets/spotify_embed_player.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
 import 'package:music_player/utils/formatters/number_formatter.dart';
+import 'package:music_player/data/services/liked/liked_tracks_service.dart';
+import 'package:music_player/data/services/playlist/playlist_service.dart';
+import 'package:music_player/features/library/widgets/select_playlist_dialog.dart';
 
 class NowPlayingPage extends StatefulWidget {
   final SpotifyTrack track;
@@ -31,7 +33,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   final WebPlaybackSDKService _webPlaybackService = WebPlaybackSDKService.instance;
   late bool _isMobilePlatform;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
+  final LikedTracksService _likedService = LikedTracksService.instance;
+  final PlaylistService _playlistService = PlaylistService.instance;
   String? _fetchedImageUrl;
+  bool _imageFetchInFlight = false;
   Timer? _positionUpdateTimer;
 
   @override
@@ -84,6 +89,14 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     
     // Start position update timer
     _startPositionUpdateTimer();
+
+    // Keep UI in sync with likes/playlists updates
+    _likedService.addListener(_onStateChanged);
+    _playlistService.addListener(_onStateChanged);
+
+    // Ensure initial load so heart state is correct
+    _likedService.loadLikedTracks();
+    _playlistService.loadPlaylists();
   }
 
   void _checkPlatform() {
@@ -102,6 +115,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     } else {
       _webPlaybackService.removeListener(_onStateChanged);
     }
+    _likedService.removeListener(_onStateChanged);
+    _playlistService.removeListener(_onStateChanged);
     super.dispose();
   }
 
@@ -147,6 +162,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     if (track == null) return;
     if (track.album?.images.isNotEmpty == true) return;
     if (_fetchedImageUrl != null) return;
+    if (_imageFetchInFlight) return;
+    _imageFetchInFlight = true;
     try {
       final full = await _spotify.getTrack(track.id);
       if (full.album != null && full.album!.images.isNotEmpty && mounted) {
@@ -155,6 +172,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         });
       }
     } catch (_) {}
+    finally {
+      _imageFetchInFlight = false;
+    }
   }
 
   String _getArtistNames() {
@@ -212,9 +232,50 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     );
   }
 
+  Future<void> _toggleLikeCurrentTrack() async {
+    final track = _currentTrack;
+    if (track == null) return;
+    try {
+      await _likedService.toggleLike(track);
+      if (!mounted) return;
+      final isLiked = _likedService.isLiked(track.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isLiked ? 'Added to Favorites' : 'Removed from Favorites',
+            style: const TextStyle(fontFamily: 'Poppins'),
+          ),
+          backgroundColor: FColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to update favorites: $e',
+            style: const TextStyle(fontFamily: 'Poppins'),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _addCurrentTrackToPlaylist() async {
+    final track = _currentTrack;
+    if (track == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => SelectPlaylistDialog(track: track),
+    );
+  }
+
   Widget _buildOptionsSheet() {
     final track = _currentTrack;
     if (track == null) return const SizedBox();
+    final isLiked = _likedService.isLiked(track.id);
 
     return SafeArea(
       child: Column(
@@ -288,11 +349,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
           // Options
           _buildOption(
-            icon: Iconsax.heart,
-            title: 'Add to Favorites',
+            icon: isLiked ? Iconsax.heart : Iconsax.heart,
+            title: isLiked ? 'Remove from Favorites' : 'Add to Favorites',
             onTap: () {
               Navigator.pop(context);
-              // TODO: Implement add to favorites
+              _toggleLikeCurrentTrack();
             },
           ),
           _buildOption(
@@ -300,7 +361,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             title: 'Add to Playlist',
             onTap: () {
               Navigator.pop(context);
-              // TODO: Implement add to playlist
+              _addCurrentTrackToPlaylist();
             },
           ),
           _buildOption(
@@ -387,9 +448,17 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_down, color: FColors.textWhite, size: 32),
-                    onPressed: () => Navigator.pop(context),
+                  Semantics(
+                    button: true,
+                    label: 'Close now playing',
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: FColors.textWhite,
+                        size: 32,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   ),
                   // Center title should flex and ellipsize to avoid overflow
                   Expanded(
@@ -422,9 +491,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, color: FColors.textWhite),
-                    onPressed: _showTrackOptions,
+                  Semantics(
+                    button: true,
+                    label: 'Track options',
+                    child: IconButton(
+                      icon: const Icon(Icons.more_vert, color: FColors.textWhite),
+                      onPressed: _showTrackOptions,
+                    ),
                   ),
                 ],
               ),
@@ -435,11 +508,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             // Album Art
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child:
-                    imageUrl != null
-                        ? Image.network(
+              child: Hero(
+                tag: 'hero-album-${track.id}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: imageUrl != null
+                      ? Image.network(
                           imageUrl,
                           width: double.infinity,
                           height: MediaQuery.of(context).size.width - 64,
@@ -457,7 +531,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                             );
                           },
                         )
-                        : Container(
+                      : Container(
                           width: double.infinity,
                           height: MediaQuery.of(context).size.width - 64,
                           color: FColors.darkerGrey,
@@ -467,23 +541,14 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                             color: FColors.darkGrey,
                           ),
                         ),
+                ),
               ),
             ),
 
             const SizedBox(height: 24),
 
-            // Hidden embed player for mobile (plays music but not visible)
-            if (_isMobilePlatform)
-              Offstage(
-                child: SizedBox(
-                  width: 1,
-                  height: 1,
-                  child: SpotifyEmbedPlayer(
-                    key: ValueKey(track.id),
-                    trackId: track.id,
-                  ),
-                ),
-              ),
+            // Mobile embed playback is hosted globally (see SpotifyEmbedHost)
+            // to avoid multiple hidden embeds stacking in the navigation stack.
 
             // Progress bar and time display
             Padding(
@@ -606,12 +671,25 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Iconsax.heart, color: FColors.textWhite),
-                        iconSize: 28,
-                        onPressed: () {
-                          // TODO: Add to favorites
-                        },
+                      Semantics(
+                        button: true,
+                        label: _likedService.isLiked(track.id)
+                            ? 'Remove from favorites'
+                            : 'Add to favorites',
+                        child: IconButton(
+                          icon: Icon(
+                            _likedService.isLiked(track.id)
+                                ? Icons.favorite
+                                : Iconsax.heart,
+                            color: _likedService.isLiked(track.id)
+                                ? FColors.primary
+                                : FColors.textWhite,
+                          ),
+                          iconSize: 28,
+                          onPressed: () {
+                            _toggleLikeCurrentTrack();
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -622,23 +700,31 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Previous
-                      IconButton(
-                        icon: Icon(
-                          Iconsax.previous,
-                          color: (_isMobilePlatform ? _embedService.hasPrevious : _webPlaybackService.hasPrevious)
-                              ? FColors.textWhite
-                              : FColors.textWhite.withValues(alpha: 0.3),
+                      Semantics(
+                        button: true,
+                        label: 'Previous track',
+                        child: IconButton(
+                          icon: Icon(
+                            Iconsax.previous,
+                            color: (_isMobilePlatform
+                                        ? _embedService.hasPrevious
+                                        : _webPlaybackService.hasPrevious)
+                                    ? FColors.textWhite
+                                    : FColors.textWhite.withValues(alpha: 0.3),
+                          ),
+                          iconSize: 32,
+                          onPressed: (_isMobilePlatform
+                                      ? _embedService.hasPrevious
+                                      : _webPlaybackService.hasPrevious)
+                                  ? () {
+                                      if (_isMobilePlatform) {
+                                        _embedService.playPrevious();
+                                      } else {
+                                        _webPlaybackService.playPrevious();
+                                      }
+                                    }
+                                  : null,
                         ),
-                        iconSize: 32,
-                        onPressed: (_isMobilePlatform ? _embedService.hasPrevious : _webPlaybackService.hasPrevious)
-                            ? () {
-                                if (_isMobilePlatform) {
-                                  _embedService.playPrevious();
-                                } else {
-                                  _webPlaybackService.playPrevious();
-                                }
-                              }
-                            : null,
                       ),
 
                       const SizedBox(width: 28),
@@ -656,48 +742,58 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                             ),
                           ],
                         ),
-                        child: IconButton(
-                          icon: Icon(
-                            _getIsPlaying()
-                                ? Iconsax.pause
-                                : Iconsax.play,
-                            color: Colors.white,
+                        child: Semantics(
+                          button: true,
+                          label: _getIsPlaying() ? 'Pause' : 'Play',
+                          child: IconButton(
+                            icon: Icon(
+                              _getIsPlaying() ? Iconsax.pause : Iconsax.play,
+                              color: Colors.white,
+                            ),
+                            iconSize: 36,
+                            onPressed: () {
+                              if (_isMobilePlatform) {
+                                // For mobile, we can't control the embed iframe directly
+                                // The embed player handles its own controls
+                                // But we can still update the UI state
+                                setState(() {});
+                              } else {
+                                _webPlaybackService.togglePlayPause();
+                                setState(() {}); // Update UI immediately
+                              }
+                            },
                           ),
-                          iconSize: 36,
-                          onPressed: () {
-                            if (_isMobilePlatform) {
-                              // For mobile, we can't control the embed iframe directly
-                              // The embed player handles its own controls
-                              // But we can still update the UI state
-                              setState(() {});
-                            } else {
-                              _webPlaybackService.togglePlayPause();
-                              setState(() {}); // Update UI immediately
-                            }
-                          },
                         ),
                       ),
 
                       const SizedBox(width: 28),
 
                       // Next
-                      IconButton(
-                        icon: Icon(
-                          Iconsax.next,
-                          color: (_isMobilePlatform ? _embedService.hasNext : _webPlaybackService.hasNext)
-                              ? FColors.textWhite
-                              : FColors.textWhite.withValues(alpha: 0.3),
+                      Semantics(
+                        button: true,
+                        label: 'Next track',
+                        child: IconButton(
+                          icon: Icon(
+                            Iconsax.next,
+                            color: (_isMobilePlatform
+                                        ? _embedService.hasNext
+                                        : _webPlaybackService.hasNext)
+                                    ? FColors.textWhite
+                                    : FColors.textWhite.withValues(alpha: 0.3),
+                          ),
+                          iconSize: 32,
+                          onPressed: (_isMobilePlatform
+                                      ? _embedService.hasNext
+                                      : _webPlaybackService.hasNext)
+                                  ? () {
+                                      if (_isMobilePlatform) {
+                                        _embedService.playNext();
+                                      } else {
+                                        _webPlaybackService.playNext();
+                                      }
+                                    }
+                                  : null,
                         ),
-                        iconSize: 32,
-                        onPressed: (_isMobilePlatform ? _embedService.hasNext : _webPlaybackService.hasNext)
-                            ? () {
-                                if (_isMobilePlatform) {
-                                  _embedService.playNext();
-                                } else {
-                                  _webPlaybackService.playNext();
-                                }
-                              }
-                            : null,
                       ),
                     ],
                   ),

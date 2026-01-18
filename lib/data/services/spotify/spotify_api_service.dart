@@ -16,6 +16,10 @@ class SpotifyApiService {
   final http.Client _client = http.Client();
   final SpotifyAuthService _authService = SpotifyAuthService.instance;
 
+  // Simple in-memory cache + in-flight de-dupe to prevent repetitive calls.
+  final Map<String, SpotifyTrack> _trackCache = {};
+  final Map<String, Future<SpotifyTrack>> _inFlightTrackRequests = {};
+
   // -------------------- Helper Methods -------------------- //
 
   /// Make authenticated GET request
@@ -64,6 +68,14 @@ class SpotifyApiService {
       final error = SpotifyError.fromJson(jsonDecode(response.body));
       throw SpotifyApiException(error.message, error.status);
     }
+  }
+
+  @visibleForTesting
+  T handleResponseForTest<T>(
+    http.Response response,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    return _handleResponse(response, fromJson);
   }
 
   // -------------------- Search -------------------- //
@@ -130,16 +142,49 @@ class SpotifyApiService {
     }
   }
 
+  /// Convenience helper to search for tracks only
+  Future<List<SpotifyTrack>> searchTracks(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final result = await search(
+      query: query,
+      type: SpotifySearchType.track,
+      limit: limit,
+      offset: offset,
+    );
+
+    return result.tracks?.items ?? const [];
+  }
+
   // -------------------- Tracks -------------------- //
 
   /// Get a track by ID
   Future<SpotifyTrack> getTrack(String trackId) async {
+    final cached = _trackCache[trackId];
+    if (cached != null) return cached;
+
+    final inFlight = _inFlightTrackRequests[trackId];
+    if (inFlight != null) return inFlight;
+
+    final future = _getTrackNetwork(trackId);
+    _inFlightTrackRequests[trackId] = future;
+    try {
+      final track = await future;
+      _trackCache[trackId] = track;
+      return track;
+    } finally {
+      _inFlightTrackRequests.remove(trackId);
+    }
+  }
+
+  Future<SpotifyTrack> _getTrackNetwork(String trackId) async {
     try {
       debugPrint('🎵 Getting track: $trackId');
-      
-      final endpoint = SpotifyConstants.replaceId(SpotifyConstants.trackEndpoint, trackId);
+      final endpoint =
+          SpotifyConstants.replaceId(SpotifyConstants.trackEndpoint, trackId);
       final response = await _get(endpoint);
-
       return _handleResponse(response, SpotifyTrack.fromJson);
     } catch (e) {
       debugPrint('❌ Get track error: $e');

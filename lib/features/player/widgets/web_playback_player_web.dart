@@ -32,6 +32,7 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
   bool _isDisposed = false; // Track if widget is disposed
   static dynamic _globalPlayer; // Global reference to prevent multiple players
   static String? _lastTransferredDeviceId; // Track device to avoid redundant transfers
+  DateTime? _lastPlaybackErrorRecovery; // throttle recovery attempts
 
   @override
   void initState() {
@@ -167,6 +168,12 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
         onTogglePlayPause: () {
           _player?.callMethod('togglePlay');
         },
+        onPause: () {
+          _player?.callMethod('pause');
+        },
+        onResume: () {
+          _player?.callMethod('resume');
+        },
         onPlayNext: () {
           _sdkService.playNext();
         },
@@ -294,19 +301,19 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
           }
         }
         
-        // Attempt recovery: resume then retry play once after a short delay
-        try {
-          _player.callMethod('resume');
-          final deviceId = _sdkService.deviceId;
-          if (deviceId != null) {
-            Future.delayed(const Duration(milliseconds: 800), () async {
-              final token = await _sdkService.getAccessToken();
-              if (token != null) {
-                _playTrack(deviceId, token);
-              }
-            });
-          }
-        } catch (_) {}
+        // Recovery: DO NOT call _playTrack(widget.trackUri) here.
+        // That causes repeated restarts/spam ("playback already active") and can fight with the service,
+        // especially after track changes. Let the service decide what to retry.
+        final now = DateTime.now();
+        if (_lastPlaybackErrorRecovery == null ||
+            now.difference(_lastPlaybackErrorRecovery!) > const Duration(seconds: 2)) {
+          _lastPlaybackErrorRecovery = now;
+          try {
+            _sdkService.queueCurrentTrackForRetry();
+          } catch (_) {}
+        } else {
+          debugPrint('⏳ Skipping playback_error recovery (throttled)');
+        }
 
         // Check if it's a Premium account issue
         if (message.toString().contains('Premium') || 
@@ -425,39 +432,9 @@ class _WebPlaybackPlayerWebState extends State<WebPlaybackPlayerWeb> {
     });
   }
 
-  Future<void> _playTrack(String deviceId, String token) async {
-    try {
-      debugPrint('🎵 Playing track: ${widget.trackUri}');
-
-      // Ensure playback is transferred to this device
-      await _transferPlayback(deviceId, token);
-
-      final response = await html.HttpRequest.request(
-        'https://api.spotify.com/v1/me/player/play?device_id=$deviceId',
-        method: 'PUT',
-        requestHeaders: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        sendData: '{"uris": ["${widget.trackUri}"]}',
-      );
-
-      if (response.status == 204 || response.status == 200) {
-        debugPrint('✅ Track started playing');
-      } else {
-        debugPrint('❌ Failed to play track: ${response.status}');
-        debugPrint('Response: ${response.responseText}');
-        _sdkService.queueCurrentTrackForRetry();
-      }
-    } catch (e) {
-      debugPrint('❌ Error playing track: $e');
-      _sdkService.queueCurrentTrackForRetry();
-    }
-  }
-
   Future<void> _transferPlayback(String deviceId, String token) async {
     if (_lastTransferredDeviceId == deviceId) {
-      debugPrint('🔁 Playback already active on device $deviceId, skipping transfer.');
+      // Avoid noisy logs during normal operation
       return;
     }
 

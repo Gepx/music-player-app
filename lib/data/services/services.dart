@@ -16,6 +16,9 @@ export 'music/music_service.dart';
 // Preferences Services
 export 'preferences/preferences_service.dart';
 
+// Premium Services
+export 'premium/premium_service.dart';
+
 // Spotify Services
 export 'spotify/spotify_services.dart';
 

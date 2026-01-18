@@ -10,6 +10,7 @@ import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
 import 'package:music_player/utils/formatters/number_formatter.dart';
+import 'package:music_player/data/services/liked/liked_tracks_service.dart';
 
 /// Mini player that floats at the bottom of the screen
 /// Appears when a song is playing
@@ -27,7 +28,9 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late Animation<double> _heightAnimation;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
+  final LikedTracksService _likedService = LikedTracksService.instance;
   final Map<String, String> _imageCache = {};
+  final Set<String> _imageFetchInFlight = <String>{};
   Timer? _positionUpdateTimer;
 
   @override
@@ -55,6 +58,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     // Listen to both services
     _embedService.addListener(_onStateChanged);
     _webPlaybackService.addListener(_onStateChanged);
+    _likedService.addListener(_onStateChanged);
     
     // Show if there's already a track
     if (_getCurrentTrack() != null) {
@@ -63,6 +67,9 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     
     // Start position update timer for dynamic time updates
     _startPositionUpdateTimer();
+
+    // Ensure likes are loaded so the heart state is correct
+    _likedService.loadLikedTracks();
   }
   
   void _startPositionUpdateTimer() {
@@ -96,6 +103,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     _positionUpdateTimer?.cancel();
     _embedService.removeListener(_onStateChanged);
     _webPlaybackService.removeListener(_onStateChanged);
+    _likedService.removeListener(_onStateChanged);
     _animationController.dispose();
     super.dispose();
   }
@@ -201,6 +209,37 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _toggleLikeCurrentTrack() async {
+    final track = _getCurrentTrack();
+    if (track == null) return;
+    try {
+      await _likedService.toggleLike(track);
+      if (!mounted) return;
+      final isLiked = _likedService.isLiked(track.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isLiked ? 'Added to Favorites' : 'Removed from Favorites',
+            style: const TextStyle(fontFamily: 'Poppins'),
+          ),
+          backgroundColor: FColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to update favorites: $e',
+            style: const TextStyle(fontFamily: 'Poppins'),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final track = _getCurrentTrack();
@@ -209,6 +248,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     }
 
     final isPlaying = _getIsPlaying();
+    final isLiked = _likedService.isLiked(track.id);
     final imageUrl = track.album?.images.isNotEmpty == true
         ? track.album!.images.first.url
         : (_imageCache[track.id]);
@@ -224,22 +264,31 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
         if (_heightAnimation.value <= 0) {
           return const SizedBox.shrink();
         }
-        return ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: _heightAnimation.value,
-            minHeight: 0,
-          ),
-          child: SizedBox(
-            height: _heightAnimation.value,
-            child: ClipRect(
-              child: child,
+        final maxHeight = _heightAnimation.value;
+        // Slide up as it expands (CP4a animation requirement).
+        return Transform.translate(
+          offset: Offset(0, 120.0 - maxHeight),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxHeight,
+              minHeight: 0,
+            ),
+            child: SizedBox(
+              height: maxHeight,
+              child: ClipRect(
+                child: child,
+              ),
             ),
           ),
         );
       },
       child: GestureDetector(
         onTap: _openNowPlayingPage,
-        child: Container(
+        child: Semantics(
+          container: true,
+          button: true,
+          label: 'Mini player. Now playing ${track.name} by ${track.artists.map((a) => a.name).join(', ')}.',
+          child: Container(
           decoration: const BoxDecoration(
             color: FColors.darkContainer,
             border: Border(
@@ -257,34 +306,40 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                 Row(
                   children: [
                     // Album art
-                    if (imageUrl != null)
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          image: DecorationImage(
-                            image: NetworkImage(imageUrl),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [FColors.primary, FColors.secondary],
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Icon(Iconsax.music, color: FColors.textWhite, size: 22),
-                        ),
-                      ),
+                    Hero(
+                      tag: 'hero-album-${track.id}',
+                      child: imageUrl != null
+                          ? Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: NetworkImage(imageUrl),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [FColors.primary, FColors.secondary],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Iconsax.music,
+                                  color: FColors.textWhite,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                    ),
                     const SizedBox(width: 12),
 
                     // Track info
@@ -324,37 +379,66 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: const Icon(Iconsax.previous, size: 18),
-                          color: FColors.textWhite,
-                          onPressed: _playPrevious,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                        Semantics(
+                          button: true,
+                          label: isLiked ? 'Remove from favorites' : 'Add to favorites',
+                          child: IconButton(
+                            icon: Icon(
+                              isLiked ? Icons.favorite : Iconsax.heart,
+                              size: 18,
+                            ),
+                            color: isLiked ? FColors.primary : FColors.textWhite,
+                            onPressed: _toggleLikeCurrentTrack,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(
-                            isPlaying ? Iconsax.pause : Iconsax.play,
-                            size: 22,
-                          ),
-                          color: FColors.primary,
-                          onPressed: _togglePlayPause,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
+                        Semantics(
+                          button: true,
+                          label: 'Previous track',
+                          child: IconButton(
+                            icon: const Icon(Iconsax.previous, size: 18),
+                            color: FColors.textWhite,
+                            onPressed: _playPrevious,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Iconsax.next, size: 18),
-                          color: FColors.textWhite,
-                          onPressed: _playNext,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                        Semantics(
+                          button: true,
+                          label: isPlaying ? 'Pause' : 'Play',
+                          child: IconButton(
+                            icon: Icon(
+                              isPlaying ? Iconsax.pause : Iconsax.play,
+                              size: 22,
+                            ),
+                            color: FColors.primary,
+                            onPressed: _togglePlayPause,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                          ),
+                        ),
+                        Semantics(
+                          button: true,
+                          label: 'Next track',
+                          child: IconButton(
+                            icon: const Icon(Iconsax.next, size: 18),
+                            color: FColors.textWhite,
+                            onPressed: _playNext,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
                         ),
                       ],
@@ -444,6 +528,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -452,6 +537,8 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     if (track == null) return;
     if (_imageCache.containsKey(track.id)) return;
     if (track.album?.images.isNotEmpty == true) return;
+    if (_imageFetchInFlight.contains(track.id)) return;
+    _imageFetchInFlight.add(track.id);
     try {
       final full = await _spotify.getTrack(track.id);
       if (full.album != null && full.album!.images.isNotEmpty) {
@@ -459,5 +546,8 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
         if (mounted) setState(() {});
       }
     } catch (_) {}
+    finally {
+      _imageFetchInFlight.remove(track.id);
+    }
   }
 }

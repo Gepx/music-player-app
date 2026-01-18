@@ -108,6 +108,23 @@ class FirestoreUserService {
     }
   }
 
+  /// Update premium status for a user
+  Future<void> updatePremiumStatus({
+    required String userId,
+    required bool isPremium,
+  }) async {
+    try {
+      await _firestore.users.doc(userId).update({
+        'isPremium': isPremium,
+        'premiumSince': isPremium ? DateTime.now().toIso8601String() : null,
+      });
+      debugPrint('✅ Premium status updated in Firestore: $isPremium');
+    } catch (e) {
+      debugPrint('❌ Error updating premium status in Firestore: $e');
+      rethrow;
+    }
+  }
+
   /// Delete user from Firestore
   Future<void> deleteUser(String userId) async {
     try {

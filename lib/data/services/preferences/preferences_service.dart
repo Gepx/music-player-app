@@ -28,6 +28,7 @@ class PreferencesService {
   static const String _userLoggedInKey = 'user_logged_in';
   static const String _userIdKey = 'user_id';
   static const String _onBoardingCompletedKey = 'onboarding_completed';
+  static const String _isPremiumKey = 'is_premium';
 
   // -------------------- Initialization -------------------- //
 
@@ -298,6 +299,18 @@ class PreferencesService {
     final p = await prefs;
     await p.remove(_userLoggedInKey);
     await p.remove(_userIdKey);
+  }
+
+  // -------------------- Premium Settings -------------------- //
+
+  Future<bool> getIsPremium() async {
+    final p = await prefs;
+    return p.getBool(_isPremiumKey) ?? false;
+  }
+
+  Future<void> setIsPremium(bool value) async {
+    final p = await prefs;
+    await p.setBool(_isPremiumKey, value);
   }
 
   /// Clear specific preference

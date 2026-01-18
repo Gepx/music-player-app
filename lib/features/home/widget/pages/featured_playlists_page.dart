@@ -2,27 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:music_player/data/models/spotify/spotify_models.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
 import 'package:music_player/utils/constants/colors.dart';
+import 'package:music_player/features/library/widgets/playlists_tab.dart';
+import 'package:music_player/features/library/liked_songs_page.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 class FeaturedPlaylistsPage extends StatefulWidget {
-  const FeaturedPlaylistsPage({super.key, this.title, this.categoryId});
+  const FeaturedPlaylistsPage({
+    super.key,
+    this.title,
+    this.categoryId,
+    this.showUserLibrary = false,
+  });
 
   final String? title;
   final String? categoryId; // if provided, load playlists for this category (e.g., 'toplists')
+  final bool showUserLibrary;
 
   @override
   State<FeaturedPlaylistsPage> createState() => _FeaturedPlaylistsPageState();
 }
 
-class _FeaturedPlaylistsPageState extends State<FeaturedPlaylistsPage> {
+class _FeaturedPlaylistsPageState extends State<FeaturedPlaylistsPage>
+    with SingleTickerProviderStateMixin {
   final SpotifyApiService _spotify = SpotifyApiService.instance;
   List<SpotifyPlaylist> _playlists = const [];
   bool _isLoading = true;
   String? _error;
+  TabController? _tabController;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    if (widget.showUserLibrary) {
+      _tabController = TabController(length: 2, vsync: this);
+      setState(() {
+        _isLoading = false;
+      });
+    } else {
+      _load();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -53,6 +77,47 @@ class _FeaturedPlaylistsPageState extends State<FeaturedPlaylistsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.showUserLibrary) {
+      return Scaffold(
+        backgroundColor: FColors.black,
+        appBar: AppBar(
+          backgroundColor: FColors.black,
+          iconTheme: const IconThemeData(color: FColors.textWhite),
+          title: Text(
+            widget.title ?? 'Your Library',
+            style: const TextStyle(color: FColors.textWhite, fontFamily: 'Poppins'),
+          ),
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: FColors.primary,
+            labelColor: FColors.primary,
+            unselectedLabelColor: FColors.darkGrey,
+            labelStyle: const TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.normal,
+              fontSize: 14,
+            ),
+            tabs: const [
+              Tab(icon: Icon(Iconsax.music_playlist), text: 'Playlists'),
+              Tab(icon: Icon(Iconsax.heart), text: 'Liked Songs'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
+            PlaylistsTab(),
+            LikedSongsPage(),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: FColors.black,
       appBar: AppBar(

@@ -11,6 +11,9 @@ import 'data/services/spotify/spotify_cache_service.dart';
 import 'data/services/preferences/preferences_service.dart';
 import 'data/services/spotify/spotify_auth_service.dart';
 import 'data/services/spotify/spotify_premium_auth_service.dart';
+import 'data/services/permissions/permission_service.dart';
+import 'data/services/ads/admob_service.dart';
+import 'data/services/premium/premium_service.dart';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
@@ -61,6 +64,9 @@ void main() async {
   // Initialize services
   await PreferencesService.instance.init();
   await SpotifyCacheService.instance.initialize();
+  await PermissionService.instance.init();
+  await PremiumService.instance.init();
+  await AdMobService.instance.initialize();
 
   // Validate Spotify API configuration
   await SpotifyAuthService.instance.validateToken();

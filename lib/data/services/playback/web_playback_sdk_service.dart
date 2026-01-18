@@ -25,10 +25,20 @@ class WebPlaybackSDKService extends ChangeNotifier {
   
   // Callback to control the actual player (set by WebPlaybackPlayerWeb)
   VoidCallback? _onTogglePlayPause;
+  VoidCallback? _onPause;
+  VoidCallback? _onResume;
   VoidCallback? _onPlayNext;
   VoidCallback? _onPlayPrevious;
   void Function(String uri)? _onPlayUri;
   void Function(int positionMs)? _onSeek;
+
+  // Used to prevent race conditions when switching tracks quickly.
+  int _playRequestId = 0;
+  int? _pendingPlayRequestId;
+
+  // Retry control to avoid infinite loops on playback errors
+  int _retryCount = 0;
+  DateTime? _lastRetryAt;
 
   // Getters
   SpotifyTrack? get currentTrack => _currentTrack;
@@ -83,12 +93,10 @@ class WebPlaybackSDKService extends ChangeNotifier {
   /// Play a pending track (internal method, doesn't set pending state)
   void _playPendingTrack(SpotifyTrack track, {List<SpotifyTrack>? playlist}) {
     if (_onPlayUri != null && _deviceId != null) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_onPlayUri != null && _deviceId != null) {
-          debugPrint('▶️ Playing pending track via callback: ${track.name}');
-          _onPlayUri!.call('spotify:track:${track.id}');
-        }
-      });
+      debugPrint('▶️ Playing pending track via callback: ${track.name}');
+      // Hard-cut any existing audio first (best effort)
+      _onPause?.call();
+      _onPlayUri!.call('spotify:track:${track.id}');
     } else {
       debugPrint('⚠️ Cannot play pending track - callbacks or device not ready');
     }
@@ -98,6 +106,20 @@ class WebPlaybackSDKService extends ChangeNotifier {
   void queueCurrentTrackForRetry() {
     final current = _currentTrack;
     if (current == null) return;
+
+    // Throttle retries and cap attempts to prevent infinite loops.
+    final now = DateTime.now();
+    if (_lastRetryAt != null && now.difference(_lastRetryAt!) < const Duration(seconds: 2)) {
+      debugPrint('⏳ Retry throttled');
+      return;
+    }
+    _lastRetryAt = now;
+    if (_retryCount >= 3) {
+      debugPrint('🛑 Retry limit reached; stopping playback to avoid loop');
+      stop();
+      return;
+    }
+    _retryCount++;
 
     debugPrint('🔁 Scheduling retry for track: ${current.name}');
     final pending = current;
@@ -116,6 +138,11 @@ class WebPlaybackSDKService extends ChangeNotifier {
   Future<void> playTrack(SpotifyTrack track, {List<SpotifyTrack>? playlist}) async {
     try {
       debugPrint('🎵 Playing track: ${track.name}');
+
+      final requestId = ++_playRequestId;
+      // New manual play resets retry counters.
+      _retryCount = 0;
+      _lastRetryAt = null;
       
       _currentTrack = track;
       _totalDuration = Duration(milliseconds: track.durationMs);
@@ -140,21 +167,28 @@ class WebPlaybackSDKService extends ChangeNotifier {
       // Log to recent plays
       RecentPlaysService.instance.addRecent(track);
 
-      // Trigger playback if callbacks are set (for web playback SDK)
-      // This ensures playback works after hot reload
+      // Hard-cut any existing audio immediately to avoid hearing the tail of the previous track.
+      // Then trigger playback if callbacks are set (for web playback SDK).
       if (_onPlayUri != null && _deviceId != null) {
-        // Small delay to ensure player is fully ready
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (_onPlayUri != null && _deviceId != null) {
-            _onPlayUri!.call('spotify:track:${track.id}');
-          }
-        });
+        // Best effort pause (explicit pause preferred over toggle).
+        if (_onPause != null) {
+          _onPause!.call();
+        } else if (_onTogglePlayPause != null && _isPlaying) {
+          // Fallback: toggle only if we believe we are playing.
+          _onTogglePlayPause!.call();
+        }
+
+        // Only play if this is still the latest request (prevents stale async calls).
+        if (requestId == _playRequestId) {
+          _onPlayUri!.call('spotify:track:${track.id}');
+        }
       } else {
         // Player not ready yet, store as pending to play once ready
         debugPrint('⚠️ Playback callbacks not ready yet (deviceId: $_deviceId, onPlayUri: ${_onPlayUri != null})');
         debugPrint('📋 Queuing track to play once player is ready: ${track.name}');
         _pendingTrack = track;
         _pendingPlaylist = playlist;
+        _pendingPlayRequestId = requestId;
       }
 
       debugPrint('✅ Track loaded: ${track.name}');
@@ -169,12 +203,16 @@ class WebPlaybackSDKService extends ChangeNotifier {
   /// Set player control callbacks (called by WebPlaybackPlayerWeb)
   void setPlayerControls({
     VoidCallback? onTogglePlayPause,
+    VoidCallback? onPause,
+    VoidCallback? onResume,
     VoidCallback? onPlayNext,
     VoidCallback? onPlayPrevious,
     void Function(String uri)? onPlayUri,
     void Function(int positionMs)? onSeek,
   }) {
     _onTogglePlayPause = onTogglePlayPause;
+    _onPause = onPause;
+    _onResume = onResume;
     _onPlayNext = onPlayNext;
     _onPlayPrevious = onPlayPrevious;
     _onPlayUri = onPlayUri;
@@ -185,9 +223,17 @@ class WebPlaybackSDKService extends ChangeNotifier {
       debugPrint('🔄 Callbacks ready, playing pending track: ${_pendingTrack!.name}');
       final pending = _pendingTrack;
       final pendingPlaylist = _pendingPlaylist;
+      final pendingRequestId = _pendingPlayRequestId;
       _pendingTrack = null;
       _pendingPlaylist = null;
-      _playPendingTrack(pending!, playlist: pendingPlaylist);
+      _pendingPlayRequestId = null;
+
+      // Only play if this pending request is still the latest request.
+      if (pendingRequestId == null || pendingRequestId == _playRequestId) {
+        _playPendingTrack(pending!, playlist: pendingPlaylist);
+      } else {
+        debugPrint('⏭️ Skipping stale pending track request');
+      }
     }
   }
 
@@ -199,6 +245,30 @@ class WebPlaybackSDKService extends ChangeNotifier {
       _isPlaying = !_isPlaying;
       debugPrint('🎵 ${_isPlaying ? "Playing" : "Paused"}');
       notifyListeners();
+    }
+  }
+
+  /// Explicit pause (preferred over toggle for UX)
+  void pause() {
+    if (_onPause != null) {
+      _onPause!();
+      _isPlaying = false;
+      notifyListeners();
+    } else {
+      debugPrint('⚠️ Pause not available; falling back to toggle');
+      togglePlayPause();
+    }
+  }
+
+  /// Explicit resume
+  void resume() {
+    if (_onResume != null) {
+      _onResume!();
+      _isPlaying = true;
+      notifyListeners();
+    } else {
+      debugPrint('⚠️ Resume not available; falling back to toggle');
+      togglePlayPause();
     }
   }
 

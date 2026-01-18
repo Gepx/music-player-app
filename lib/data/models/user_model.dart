@@ -11,6 +11,8 @@ class UserModel {
   final String? jwtToken;
   final String? refreshToken;
   final String? provider; // 'email', 'google', etc.
+  final bool isPremium;
+  final DateTime? premiumSince;
 
   UserModel({
     required this.id,
@@ -23,6 +25,8 @@ class UserModel {
     this.jwtToken,
     this.refreshToken,
     this.provider,
+    this.isPremium = false,
+    this.premiumSince,
   });
 
   // -------------------- JSON Serialization -------------------- //
@@ -40,6 +44,8 @@ class UserModel {
       'jwtToken': jwtToken,
       'refreshToken': refreshToken,
       'provider': provider,
+      'isPremium': isPremium,
+      'premiumSince': premiumSince?.toIso8601String(),
     };
   }
 
@@ -60,6 +66,10 @@ class UserModel {
       jwtToken: json['jwtToken'] as String?,
       refreshToken: json['refreshToken'] as String?,
       provider: json['provider'] as String?,
+      isPremium: json['isPremium'] as bool? ?? false,
+      premiumSince: json['premiumSince'] != null
+          ? DateTime.tryParse(json['premiumSince'] as String)
+          : null,
     );
   }
 
@@ -76,6 +86,8 @@ class UserModel {
       'createdAt': createdAt?.millisecondsSinceEpoch,
       'lastLoginAt': lastLoginAt?.millisecondsSinceEpoch,
       'provider': provider,
+      'isPremium': isPremium ? 1 : 0,
+      'premiumSince': premiumSince?.millisecondsSinceEpoch,
       // Note: JWT tokens stored separately in secure storage, not SQLite
     };
   }
@@ -95,6 +107,10 @@ class UserModel {
           ? DateTime.fromMillisecondsSinceEpoch(map['lastLoginAt'] as int)
           : null,
       provider: map['provider'] as String?,
+      isPremium: (map['isPremium'] as int? ?? 0) == 1,
+      premiumSince: map['premiumSince'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['premiumSince'] as int)
+          : null,
     );
   }
 
@@ -112,6 +128,8 @@ class UserModel {
     String? jwtToken,
     String? refreshToken,
     String? provider,
+    bool? isPremium,
+    DateTime? premiumSince,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -124,6 +142,8 @@ class UserModel {
       jwtToken: jwtToken ?? this.jwtToken,
       refreshToken: refreshToken ?? this.refreshToken,
       provider: provider ?? this.provider,
+      isPremium: isPremium ?? this.isPremium,
+      premiumSince: premiumSince ?? this.premiumSince,
     );
   }
 
@@ -137,7 +157,7 @@ class UserModel {
 
   @override
   String toString() {
-    return 'UserModel(id: $id, email: $email, displayName: $displayName, provider: $provider)';
+    return 'UserModel(id: $id, email: $email, displayName: $displayName, provider: $provider, isPremium: $isPremium)';
   }
 
   @override
@@ -150,7 +170,8 @@ class UserModel {
         other.displayName == displayName &&
         other.photoUrl == photoUrl &&
         other.phoneNumber == phoneNumber &&
-        other.provider == provider;
+        other.provider == provider &&
+        other.isPremium == isPremium;
   }
 
   @override
@@ -162,6 +183,7 @@ class UserModel {
       photoUrl,
       phoneNumber,
       provider,
+      isPremium,
     );
   }
 }
