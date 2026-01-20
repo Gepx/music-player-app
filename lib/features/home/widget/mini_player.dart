@@ -1,9 +1,6 @@
 import 'dart:async';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_player/data/models/spotify/spotify_track.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
 import 'package:music_player/features/player/now_playing_page.dart';
 import 'package:music_player/utils/constants/colors.dart';
@@ -22,8 +19,6 @@ class MiniPlayer extends StatefulWidget {
 }
 
 class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateMixin {
-  late bool _isMobilePlatform;
-  late final SpotifyEmbedService _embedService;
   late final WebPlaybackSDKService _webPlaybackService;
   late AnimationController _animationController;
   late Animation<double> _heightAnimation;
@@ -36,9 +31,6 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _checkPlatform();
-    
-    _embedService = SpotifyEmbedService.instance;
     _webPlaybackService = WebPlaybackSDKService.instance;
     
     // Animation setup
@@ -56,7 +48,6 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     ));
     
     // Listen to both services
-    _embedService.addListener(_onStateChanged);
     _webPlaybackService.addListener(_onStateChanged);
     _likedService.addListener(_onStateChanged);
     
@@ -76,32 +67,14 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     _positionUpdateTimer?.cancel();
     _positionUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (mounted && _getCurrentTrack() != null) {
-        // Always update UI to reflect position changes from player_state_changed listener
-        // Position updates come from the Web Playback SDK's player_state_changed event
-        if (!_isMobilePlatform) {
-          // For web, position is updated by player_state_changed listener
-          // Timer just triggers UI refresh
-          setState(() {});
-        } else if (_isMobilePlatform && _embedService.currentTrack != null) {
-          // For mobile, we can't get real-time position, but we can still update UI
-          setState(() {});
-        }
+        setState(() {});
       }
     });
-  }
-
-  void _checkPlatform() {
-    if (kIsWeb) {
-      _isMobilePlatform = false;
-    } else {
-      _isMobilePlatform = Platform.isAndroid || Platform.isIOS;
-    }
   }
 
   @override
   void dispose() {
     _positionUpdateTimer?.cancel();
-    _embedService.removeListener(_onStateChanged);
     _webPlaybackService.removeListener(_onStateChanged);
     _likedService.removeListener(_onStateChanged);
     _animationController.dispose();
@@ -130,67 +103,42 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   }
 
   SpotifyTrack? _getCurrentTrack() {
-    return _isMobilePlatform
-        ? _embedService.currentTrack
-        : _webPlaybackService.currentTrack;
+    return _webPlaybackService.currentTrack;
   }
 
   bool _getIsPlaying() {
-    // For embed service (mobile), we can't access playing state from iframe
-    // Always show as "playing" if there's a track
-    return _isMobilePlatform
-        ? (_embedService.currentTrack != null)
-        : _webPlaybackService.isPlaying;
+    return _webPlaybackService.isPlaying;
   }
 
   Duration _getCurrentPosition() {
-    return _isMobilePlatform
-        ? Duration.zero // Embed service doesn't provide position
-        : _webPlaybackService.currentPosition;
+    return _webPlaybackService.currentPosition;
   }
 
   Duration _getTotalDuration() {
     final track = _getCurrentTrack();
     if (track == null) return Duration.zero;
     
-    return _isMobilePlatform
+    final total = _webPlaybackService.totalDuration;
+    return total == Duration.zero
         ? Duration(milliseconds: track.durationMs)
-        : _webPlaybackService.totalDuration;
+        : total;
   }
 
   void _seekTo(Duration position) {
-    if (!_isMobilePlatform) {
-      _webPlaybackService.seekTo(position);
-    }
+    _webPlaybackService.seekTo(position);
   }
 
   void _togglePlayPause() {
-    if (_isMobilePlatform) {
-      // For mobile embed player, we can't control the iframe directly
-      // But we can still toggle by opening/closing the Now Playing page
-      // However, since user wants it to work directly, we'll just open the page
-      // where they can control playback
-      _openNowPlayingPage();
-    } else {
-      _webPlaybackService.togglePlayPause();
-      setState(() {}); // Update UI immediately
-    }
+    _webPlaybackService.togglePlayPause();
+    setState(() {});
   }
 
   void _playNext() {
-    if (_isMobilePlatform) {
-      _embedService.playNext();
-    } else {
-      _webPlaybackService.playNext();
-    }
+    _webPlaybackService.playNext();
   }
 
   void _playPrevious() {
-    if (_isMobilePlatform) {
-      _embedService.playPrevious();
-    } else {
-      _webPlaybackService.playPrevious();
-    }
+    _webPlaybackService.playPrevious();
   }
 
   void _openNowPlayingPage() {
@@ -200,9 +148,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
         MaterialPageRoute(
           builder: (context) => NowPlayingPage(
             track: track,
-            playlist: _isMobilePlatform
-                ? _embedService.queue
-                : _webPlaybackService.queue,
+            playlist: _webPlaybackService.queue,
           ),
         ),
       );
@@ -470,28 +416,19 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                           ),
                           child: Slider(
                             value: progress.clamp(0.0, 1.0),
-                            onChangeStart: !_isMobilePlatform
-                                ? (value) {
-                                    // Pause updates while dragging
-                                    _positionUpdateTimer?.cancel();
-                                  }
-                                : null,
-                            onChanged: !_isMobilePlatform
-                                ? (value) {
-                                    final newPosition = Duration(
-                                      milliseconds: (value * totalDuration.inMilliseconds).round(),
-                                    );
-                                    _seekTo(newPosition);
-                                    // Update UI immediately while dragging
-                                    setState(() {});
-                                  }
-                                : null,
-                            onChangeEnd: !_isMobilePlatform
-                                ? (value) {
-                                    // Resume updates after dragging
-                                    _startPositionUpdateTimer();
-                                  }
-                                : null,
+                            onChangeStart: (value) {
+                              _positionUpdateTimer?.cancel();
+                            },
+                            onChanged: (value) {
+                              final newPosition = Duration(
+                                milliseconds: (value * totalDuration.inMilliseconds).round(),
+                              );
+                              _seekTo(newPosition);
+                              setState(() {});
+                            },
+                            onChangeEnd: (value) {
+                              _startPositionUpdateTimer();
+                            },
                           ),
                         ),
                         Padding(

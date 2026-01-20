@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
@@ -22,22 +23,30 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
   bool _isLoading = true;
   final WebPlaybackSDKService _sdkService = WebPlaybackSDKService.instance;
 
+  // #region agent log
+  void _debugLog(String loc, String msg, Map<String, dynamic> data, String hypId) {
+    final payload = {'location': loc, 'message': msg, 'data': data, 'timestamp': DateTime.now().millisecondsSinceEpoch, 'sessionId': 'debug-session', 'hypothesisId': hypId};
+    try { File('/Users/vin/Code/music-player-app/.cursor/debug.log').writeAsStringSync('${payload.toString().replaceAll("'", '"')}\n', mode: FileMode.append); } catch (_) {}
+  }
+  // #endregion
+
   @override
   void initState() {
     super.initState();
+    // #region agent log
+    _debugLog('web_playback_player.dart:initState', 'WebPlaybackPlayer initState', {'trackUri': widget.trackUri}, 'B');
+    // #endregion
     _initializeSDK();
   }
 
   Future<void> _initializeSDK() async {
+    // #region agent log
+    _debugLog('web_playback_player.dart:_initializeSDK', 'SDK initialize starting', {}, 'B');
+    // #endregion
     await _sdkService.initialize();
-  }
-
-  @override
-  void didUpdateWidget(WebPlaybackPlayer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.trackUri != widget.trackUri && _controller != null) {
-      _playTrack(widget.trackUri);
-    }
+    // #region agent log
+    _debugLog('web_playback_player.dart:_initializeSDK', 'SDK initialize complete', {}, 'B');
+    // #endregion
   }
 
   Future<void> _playTrack(String trackUri) async {
@@ -46,6 +55,15 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
       await _controller!.evaluateJavascript(source: '''
         playTrack('$trackUri', '$token');
       ''');
+    }
+  }
+
+  Future<void> _runJs(String source) async {
+    if (_controller == null) return;
+    try {
+      await _controller!.evaluateJavascript(source: source);
+    } catch (e) {
+      debugPrint('❌ Web Playback JS error: $e');
     }
   }
 
@@ -191,44 +209,49 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
         let accessToken;
 
         window.onSpotifyWebPlaybackSDKReady = () => {
-            console.log('Spotify SDK Ready');
+            console.log('[HYP-C] Spotify SDK Ready callback fired');
             initializePlayer();
         };
 
         async function initializePlayer() {
+            console.log('[HYP-D] initializePlayer() starting');
             // Get token from Flutter
             try {
                 const token = await getAccessToken();
+                console.log('[HYP-D] Token received: ' + (token ? 'yes' : 'no'));
                 if (!token) {
+                    console.error('[HYP-D] No access token available');
                     updateStatus('Failed to get access token. Please ensure you are logged in.');
                     return;
                 }
                 accessToken = token;
 
+                console.log('[HYP-E] Creating Spotify.Player instance');
                 player = new Spotify.Player({
                     name: 'Flutter Music Player',
                     getOAuthToken: cb => { cb(accessToken); },
                     volume: 0.8
                 });
+                console.log('[HYP-E] Spotify.Player created, adding listeners');
 
                 // Error handling
                 player.addListener('initialization_error', ({ message }) => {
-                    console.error('Initialization Error:', message);
+                    console.error('[HYP-E] Initialization Error: ' + message);
                     updateStatus('Initialization error: ' + message);
                 });
 
                 player.addListener('authentication_error', ({ message }) => {
-                    console.error('Authentication Error:', message);
+                    console.error('[HYP-E] Authentication Error: ' + message);
                     updateStatus('Authentication error. Please ensure you have Spotify Premium.');
                 });
 
                 player.addListener('account_error', ({ message }) => {
-                    console.error('Account Error:', message);
+                    console.error('[HYP-E] Account Error: ' + message);
                     updateStatus('Account error: Spotify Premium required');
                 });
 
                 player.addListener('playback_error', ({ message }) => {
-                    console.error('Playback Error:', message);
+                    console.error('[HYP-E] Playback Error: ' + message);
                 });
 
                 // Playback status updates
@@ -249,7 +272,7 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
 
                 // Ready
                 player.addListener('ready', ({ device_id }) => {
-                    console.log('Ready with Device ID', device_id);
+                    console.log('[HYP-E] Player READY with Device ID: ' + device_id);
                     deviceId = device_id;
                     document.getElementById('status').style.display = 'none';
                     document.getElementById('player').style.display = 'block';
@@ -261,14 +284,19 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                 });
 
                 player.addListener('not_ready', ({ device_id }) => {
-                    console.log('Device ID has gone offline', device_id);
+                    console.log('[HYP-E] Player NOT READY, device offline: ' + device_id);
                 });
 
                 // Connect
-                player.connect();
+                console.log('[HYP-E] Calling player.connect()');
+                player.connect().then(success => {
+                    console.log('[HYP-E] player.connect() resolved: ' + success);
+                }).catch(err => {
+                    console.error('[HYP-E] player.connect() rejected: ' + err);
+                });
 
             } catch (error) {
-                console.error('Failed to initialize player:', error);
+                console.error('[HYP-E] initializePlayer catch block: ' + error.message);
                 updateStatus('Failed to initialize player: ' + error.message);
             }
         }
@@ -311,15 +339,33 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
         }
 
         function togglePlayPause() {
+            if (!player) return;
             player.togglePlay();
         }
 
+        function pausePlayback() {
+            if (!player) return;
+            player.pause();
+        }
+
+        function resumePlayback() {
+            if (!player) return;
+            player.resume();
+        }
+
         function nextTrack() {
+            if (!player) return;
             player.nextTrack();
         }
 
         function previousTrack() {
+            if (!player) return;
             player.previousTrack();
+        }
+
+        function seekTo(ms) {
+            if (!player) return;
+            player.seek(ms);
         }
 
         function updatePlayerUI(state) {
@@ -405,6 +451,9 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                 useHybridComposition: true,
               ),
               onWebViewCreated: (controller) {
+                // #region agent log
+                _debugLog('web_playback_player.dart:onWebViewCreated', 'WebView created', {}, 'B');
+                // #endregion
                 _controller = controller;
 
                 // Add JavaScript handler for getting access token
@@ -412,6 +461,9 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                   handlerName: 'getAccessToken',
                   callback: (args) async {
                     final token = await _sdkService.getAccessToken();
+                    // #region agent log
+                    _debugLog('web_playback_player.dart:getAccessToken', 'Token requested from JS', {'hasToken': token != null}, 'D');
+                    // #endregion
                     return token;
                   },
                 );
@@ -420,6 +472,9 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                 controller.addJavaScriptHandler(
                   handlerName: 'onReady',
                   callback: (args) {
+                    // #region agent log
+                    _debugLog('web_playback_player.dart:onReady', 'Spotify SDK ready callback', {'args': args.toString()}, 'E');
+                    // #endregion
                     if (args.isNotEmpty && args[0] is Map) {
                       final data = args[0] as Map;
                       final deviceId = data['deviceId'] as String?;
@@ -439,10 +494,14 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                     if (args.isNotEmpty && args[0] is Map) {
                       final data = args[0] as Map;
                       final position = data['position'] as int?;
+                      final duration = data['duration'] as int?;
                       final paused = data['paused'] as bool?;
                       
                       if (position != null) {
                         _sdkService.updatePosition(Duration(milliseconds: position));
+                      }
+                      if (duration != null && duration > 0) {
+                        _sdkService.updateTotalDuration(Duration(milliseconds: duration));
                       }
                       if (paused != null) {
                         _sdkService.updatePlayingState(!paused);
@@ -450,6 +509,16 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                     }
                     return null;
                   },
+                );
+
+                _sdkService.setPlayerControls(
+                  onTogglePlayPause: () => _runJs('togglePlayPause();'),
+                  onPause: () => _runJs('pausePlayback();'),
+                  onResume: () => _runJs('resumePlayback();'),
+                  onPlayNext: () => _runJs('nextTrack();'),
+                  onPlayPrevious: () => _runJs('previousTrack();'),
+                  onPlayUri: (uri) => _playTrack(uri),
+                  onSeek: (positionMs) => _runJs('seekTo($positionMs);'),
                 );
 
                 debugPrint('🎵 WebView created for Web Playback SDK');
@@ -462,18 +531,21 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                 }
               },
               onLoadStop: (controller, url) async {
+                // #region agent log
+                _debugLog('web_playback_player.dart:onLoadStop', 'WebView load complete', {'url': url?.toString()}, 'C');
+                // #endregion
                 if (mounted) {
                   setState(() {
                     _isLoading = false;
                   });
                 }
-                
-                // Play the track
-                await _playTrack(widget.trackUri);
-                
+
                 debugPrint('✅ Web Playback SDK loaded');
               },
               onLoadError: (controller, url, code, message) {
+                // #region agent log
+                _debugLog('web_playback_player.dart:onLoadError', 'WebView load error', {'code': code, 'message': message}, 'C');
+                // #endregion
                 debugPrint('❌ Web Playback SDK error: $message');
                 if (mounted) {
                   setState(() {
@@ -482,6 +554,9 @@ class _WebPlaybackPlayerState extends State<WebPlaybackPlayer> {
                 }
               },
               onConsoleMessage: (controller, consoleMessage) {
+                // #region agent log
+                _debugLog('web_playback_player.dart:console', 'JS Console', {'level': consoleMessage.messageLevel.toString(), 'msg': consoleMessage.message}, 'C_E');
+                // #endregion
                 debugPrint('🌐 Console: ${consoleMessage.message}');
               },
             ),

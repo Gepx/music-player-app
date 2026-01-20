@@ -18,6 +18,11 @@ class SpotifyPremiumAuthService {
   String get _clientId => dotenv.env['SPOTIFY_PREMIUM_CLIENT_ID'] ?? '';
   String get _clientSecret => dotenv.env['SPOTIFY_PREMIUM_CLIENT_SECRET'] ?? '';
   String get _refreshToken => dotenv.env['SPOTIFY_PREMIUM_REFRESH_TOKEN'] ?? '';
+  String get _redirectUri => dotenv.env['SPOTIFY_REDIRECT_URI'] ?? 'musicplayer://callback';
+
+  /// Public getters for native SDK
+  String? get clientId => _clientId.isNotEmpty ? _clientId : null;
+  String? get redirectUri => _redirectUri.isNotEmpty ? _redirectUri : null;
 
   /// Check if premium credentials are configured
   bool get isConfigured => _clientId.isNotEmpty && 

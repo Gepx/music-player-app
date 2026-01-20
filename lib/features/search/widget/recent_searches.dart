@@ -6,10 +6,7 @@ import 'package:music_player/data/models/spotify/spotify_search_result.dart';
 import 'package:music_player/data/services/spotify/spotify_cache_service.dart';
 import 'package:music_player/features/album/album_detail_page.dart';
 import 'package:music_player/features/artist/artist_detail_page.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 
 class RecentSearches extends StatefulWidget {
   const RecentSearches({super.key});
@@ -21,15 +18,12 @@ class RecentSearches extends StatefulWidget {
 class _RecentSearchesState extends State<RecentSearches> {
   final SpotifyCacheService _cache = SpotifyCacheService.instance;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
-  final SpotifyEmbedService _embed = SpotifyEmbedService.instance;
   final WebPlaybackSDKService _web = WebPlaybackSDKService.instance;
-  late final bool _isMobilePlatform;
   List<String> _queries = const [];
 
   @override
   void initState() {
     super.initState();
-    _isMobilePlatform = kIsWeb ? false : (Platform.isAndroid || Platform.isIOS);
     _load();
   }
 
@@ -45,11 +39,7 @@ class _RecentSearchesState extends State<RecentSearches> {
       // Prefer tracks; else go to album; else artist page
       if ((result.tracks?.items.isNotEmpty ?? false)) {
         final track = result.tracks!.items.first;
-        if (_isMobilePlatform) {
-          _embed.loadTrack(track, playlist: [track]);
-        } else {
-          await _web.playTrack(track, playlist: [track]);
-        }
+        await _web.playTrack(track, playlist: [track]);
         return;
       }
       if ((result.albums?.items.isNotEmpty ?? false)) {

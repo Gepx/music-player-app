@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:music_player/data/repositories/user_repository.dart';
 import 'package:music_player/features/authentication/screens/signup/signup.dart';
 import 'package:music_player/common/navigation/screens/main_navigation.dart';
+import 'package:music_player/features/authentication/screens/forgot_password/forgot_password.dart';
 import 'package:music_player/utils/constants/sizes.dart';
 import 'package:music_player/utils/constants/text_strings.dart';
 import 'package:music_player/utils/constants/colors.dart';
@@ -114,7 +115,11 @@ class _FLoginFormState extends State<FLoginForm> {
 
                 // Forget Password
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Get.to(() => ForgotPasswordScreen(
+                      initialEmail: _email.text.trim(),
+                    ));
+                  },
                   child: const Text(FTexts.forgotPassword),
                 ),
               ],

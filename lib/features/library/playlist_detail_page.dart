@@ -5,11 +5,9 @@ import '../../data/models/user/playlist.dart';
 import '../../data/models/spotify/spotify_track.dart';
 import '../../data/services/playlist/playlist_service.dart';
 import '../../data/services/spotify/spotify_api_service.dart';
-import '../../data/services/playback/spotify_embed_service.dart';
+import '../../data/services/liked/liked_playlists_service.dart';
 import '../../data/services/playback/web_playback_sdk_service.dart';
 import '../home/widget/mini_player.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'widgets/playlist_dialog.dart';
 import 'widgets/playlist_cover.dart';
 import 'widgets/add_songs_dialog.dart';
@@ -32,27 +30,33 @@ class PlaylistDetailPage extends StatefulWidget {
 class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   final PlaylistService _playlistService = PlaylistService.instance;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
-  final SpotifyEmbedService _embedService = SpotifyEmbedService.instance;
   final WebPlaybackSDKService _webPlaybackService = WebPlaybackSDKService.instance;
+  final LikedPlaylistsService _likedPlaylists = LikedPlaylistsService.instance;
 
   List<SpotifyTrack> _tracks = [];
   bool _loading = true;
   late Playlist _currentPlaylist;
-  late bool _isMobilePlatform;
 
   @override
   void initState() {
     super.initState();
     _currentPlaylist = widget.playlist;
-    _isMobilePlatform = kIsWeb ? false : (Platform.isAndroid || Platform.isIOS);
     _loadTracks();
     _playlistService.addListener(_onPlaylistChanged);
+    _likedPlaylists.addListener(_onLikedChanged);
+    _likedPlaylists.loadLikedPlaylists();
   }
 
   @override
   void dispose() {
     _playlistService.removeListener(_onPlaylistChanged);
+    _likedPlaylists.removeListener(_onLikedChanged);
     super.dispose();
+  }
+
+  void _onLikedChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _onPlaylistChanged() {
@@ -95,19 +99,11 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   Future<void> _playAll() async {
     if (_tracks.isEmpty) return;
 
-    if (_isMobilePlatform) {
-      _embedService.loadTrack(_tracks.first, playlist: _tracks);
-    } else {
-      await _webPlaybackService.playTrack(_tracks.first, playlist: _tracks);
-    }
+    await _webPlaybackService.playTrack(_tracks.first, playlist: _tracks);
   }
 
   Future<void> _playTrack(SpotifyTrack track) async {
-    if (_isMobilePlatform) {
-      _embedService.loadTrack(track, playlist: _tracks);
-    } else {
-      await _webPlaybackService.playTrack(track, playlist: _tracks);
-    }
+    await _webPlaybackService.playTrack(track, playlist: _tracks);
   }
 
   Future<void> _editPlaylist() async {
@@ -198,6 +194,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isLiked = _likedPlaylists.isLiked(_currentPlaylist.id);
     return Scaffold(
       backgroundColor: FColors.dark,
       body: CustomScrollView(
@@ -212,6 +209,28 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
+              IconButton(
+                icon: Icon(
+                  isLiked ? Icons.favorite : Iconsax.heart,
+                  color: isLiked ? FColors.primary : FColors.textWhite,
+                ),
+                onPressed: () async {
+                  try {
+                    await _likedPlaylists.toggleLike(_currentPlaylist);
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to update playlist like: $e',
+                          style: const TextStyle(fontFamily: 'Poppins'),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
               IconButton(
                 icon: const Icon(Iconsax.edit, color: FColors.textWhite),
                 onPressed: _editPlaylist,

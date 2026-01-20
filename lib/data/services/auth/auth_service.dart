@@ -436,6 +436,40 @@ class AuthService {
     }
   }
 
+  /// Update password directly for signed-in user (no email verification)
+  Future<AuthResponse> updatePasswordDirect({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      final user = currentFirebaseUser;
+      if (user == null) {
+        return AuthResponse.failure(
+          message: 'Please sign in to change your password',
+        );
+      }
+
+      final currentEmail = user.email?.toLowerCase();
+      if (currentEmail == null || currentEmail != email.toLowerCase()) {
+        return AuthResponse.failure(
+          message: 'Email does not match the signed-in account',
+        );
+      }
+
+      await user.updatePassword(newPassword);
+      debugPrint('✅ Password updated for: $email');
+      return AuthResponse.success(null, message: 'Password updated');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('❌ Update password error: ${e.code}');
+      return AuthResponse.failure(
+        message: _getAuthErrorMessage(e.code),
+        errorCode: e.code,
+      );
+    } catch (e) {
+      return AuthResponse.failure(message: 'Failed to update password');
+    }
+  }
+
   /// Update user profile
   Future<AuthResponse> updateUserProfile({
     String? displayName,

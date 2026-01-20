@@ -1,8 +1,5 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_player/data/models/spotify/spotify_track.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -15,36 +12,17 @@ class QueueSheet extends StatefulWidget {
 }
 
 class _QueueSheetState extends State<QueueSheet> {
-  final SpotifyEmbedService _embedService = SpotifyEmbedService.instance;
   final WebPlaybackSDKService _webPlaybackService = WebPlaybackSDKService.instance;
-  late bool _isMobilePlatform;
 
   @override
   void initState() {
     super.initState();
-    _checkPlatform();
-    if (_isMobilePlatform) {
-      _embedService.addListener(_onStateChanged);
-    } else {
-      _webPlaybackService.addListener(_onStateChanged);
-    }
-  }
-
-  void _checkPlatform() {
-    if (kIsWeb) {
-      _isMobilePlatform = false;
-    } else {
-      _isMobilePlatform = Platform.isAndroid || Platform.isIOS;
-    }
+    _webPlaybackService.addListener(_onStateChanged);
   }
 
   @override
   void dispose() {
-    if (_isMobilePlatform) {
-      _embedService.removeListener(_onStateChanged);
-    } else {
-      _webPlaybackService.removeListener(_onStateChanged);
-    }
+    _webPlaybackService.removeListener(_onStateChanged);
     super.dispose();
   }
 
@@ -74,8 +52,8 @@ class _QueueSheetState extends State<QueueSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final queue = _isMobilePlatform ? _embedService.queue : _webPlaybackService.queue;
-    final currentIndex = _isMobilePlatform ? _embedService.currentIndex : _webPlaybackService.currentIndex;
+    final queue = _webPlaybackService.queue;
+    final currentIndex = _webPlaybackService.currentIndex;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -152,11 +130,7 @@ class _QueueSheetState extends State<QueueSheet> {
                                     ),
                                     TextButton(
                                       onPressed: () {
-                                        if (_isMobilePlatform) {
-                                          _embedService.clearQueue();
-                                        } else {
-                                          _webPlaybackService.clearQueue();
-                                        }
+                                        _webPlaybackService.clearQueue();
                                         Navigator.pop(context);
                                       },
                                       child: const Text(
@@ -271,11 +245,7 @@ class _QueueSheetState extends State<QueueSheet> {
           borderRadius: BorderRadius.circular(12),
           onTap: () {
             // Play/load this track
-            if (_isMobilePlatform) {
-              _embedService.loadTrack(track, playlist: _embedService.queue);
-            } else {
-              _webPlaybackService.playTrack(track, playlist: _webPlaybackService.queue);
-            }
+            _webPlaybackService.playTrack(track, playlist: _webPlaybackService.queue);
           },
           child: Padding(
             padding: const EdgeInsets.all(12.0),
@@ -369,11 +339,7 @@ class _QueueSheetState extends State<QueueSheet> {
                         size: 20,
                       ),
                       onPressed: () {
-                        if (_isMobilePlatform) {
-                          _embedService.removeFromQueue(index);
-                        } else {
-                          _webPlaybackService.removeFromQueue(index);
-                        }
+                        _webPlaybackService.removeFromQueue(index);
                       },
                     ),
                   )

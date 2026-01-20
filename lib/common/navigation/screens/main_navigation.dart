@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:music_player/common/widgets/bottom_navigation_bar.dart';
 import 'package:music_player/common/navigation/controllers/navigation_controller.dart';
 import 'package:music_player/features/home/widget/mini_player.dart';
-import 'package:music_player/features/player/widgets/spotify_embed_host.dart';
 import 'package:music_player/features/player/widgets/web_playback_host.dart';
 
 class MainNavigation extends StatelessWidget {
@@ -27,11 +26,7 @@ class MainNavigation extends StatelessWidget {
             bottom: 0,
             child: MiniPlayer(),
           ),
-          // Global hidden Spotify Embed host (mobile)
-          const Positioned.fill(
-            child: IgnorePointer(child: SpotifyEmbedHost()),
-          ),
-          // Global hidden Web Playback SDK host (web/desktop)
+          // Global hidden Web Playback SDK host (all platforms)
           const Positioned.fill(
             child: IgnorePointer(child: WebPlaybackHost()),
           ),

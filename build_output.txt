@@ -1,0 +1,271 @@
+Resolving dependencies...
+Downloading packages...
+  _fe_analyzer_shared 67.0.0 (93.0.0 available)
+  _flutterfire_internals 1.3.64 (1.3.65 available)
+  analyzer 6.4.1 (10.0.1 available)
+  app_links 6.4.1 (7.0.0 available)
+  async 2.12.0 (2.13.0 available)
+  audio_session 0.1.25 (0.2.2 available)
+  build 2.4.1 (4.0.4 available)
+  build_config 1.1.2 (1.2.0 available)
+  build_daemon 4.0.4 (4.1.1 available)
+  build_resolvers 2.4.2 (3.0.4 available)
+  build_runner 2.4.13 (2.10.5 available)
+  build_runner_core 7.3.2 (9.3.2 available)
+  built_value 8.12.0 (8.12.3 available)
+  characters 1.4.0 (1.4.1 available)
+  checked_yaml 2.0.3 (2.0.4 available)
+  cloud_firestore 6.0.2 (6.1.1 available)
+  cloud_firestore_platform_interface 7.0.2 (7.0.5 available)
+  cloud_firestore_web 5.0.2 (5.1.1 available)
+  code_builder 4.11.0 (4.11.1 available)
+  crypto 3.0.6 (3.0.7 available)
+  dart_style 2.3.6 (3.1.4 available)
+  dev_build 1.1.2+11 (1.1.3+1 available)
+  equatable 2.0.7 (2.0.8 available)
+  ffi 2.1.4 (2.1.5 available)
+  firebase_analytics 12.0.4 (12.1.0 available)
+  firebase_analytics_platform_interface 5.0.4 (5.0.5 available)
+  firebase_analytics_web 0.6.1 (0.6.1+1 available)
+  firebase_auth 6.1.0 (6.1.3 available)
+  firebase_auth_platform_interface 8.1.2 (8.1.5 available)
+  firebase_auth_web 6.0.3 (6.1.1 available)
+  firebase_core 4.2.1 (4.3.0 available)
+  firebase_core_web 3.3.0 (3.3.1 available)
+  firebase_storage 13.0.2 (13.0.5 available)
+  firebase_storage_platform_interface 5.2.13 (5.2.16 available)
+  firebase_storage_web 3.10.20 (3.11.1 available)
+  flutter_facebook_auth 7.1.2 (7.1.5 available)
+  flutter_lints 5.0.0 (6.0.0 available)
+  flutter_local_notifications 18.0.1 (19.5.0 available)
+  flutter_local_notifications_linux 5.0.0 (6.0.0 available)
+  flutter_local_notifications_platform_interface 8.0.0 (9.1.0 available)
+  flutter_native_splash 2.4.6 (2.4.7 available)
+  flutter_secure_storage 9.2.4 (10.0.0 available)
+  flutter_secure_storage_linux 1.2.3 (3.0.0 available)
+  flutter_secure_storage_macos 3.1.3 (4.0.0 available)
+  flutter_secure_storage_platform_interface 1.1.2 (2.0.1 available)
+  flutter_secure_storage_web 1.2.1 (2.1.0 available)
+  flutter_secure_storage_windows 3.1.2 (4.1.0 available)
+  get 4.7.2 (4.7.3 available)
+  google_mobile_ads 5.3.1 (7.0.0 available)
+  google_sign_in_android 7.2.1 (7.2.7 available)
+  google_sign_in_ios 6.2.1 (6.2.5 available)
+  http 1.5.0 (1.6.0 available)
+  image 4.5.4 (4.7.2 available)
+  js 0.6.7 (0.7.2 available)
+  json_serializable 6.8.0 (6.11.4 available)
+  just_audio 0.9.46 (0.10.5 available)
+  lints 5.1.1 (6.0.0 available)
+  logger 2.6.1 (2.6.2 available)
+  matcher 0.12.17 (0.12.18 available)
+  material_color_utilities 0.11.1 (0.13.0 available)
+  meta 1.16.0 (1.18.0 available)
+  mockito 5.4.4 (5.6.3 available)
+  oauth2 2.0.3 (2.0.5 available)
+  path_provider_android 2.2.18 (2.2.22 available)
+  path_provider_foundation 2.4.2 (2.6.0 available)
+  permission_handler 11.4.0 (12.0.1 available)
+  permission_handler_android 12.1.0 (13.0.1 available)
+  petitparser 6.1.0 (7.0.1 available)
+  shared_preferences 2.5.3 (2.5.4 available)
+  shared_preferences_android 2.4.13 (2.4.18 available)
+  shared_preferences_foundation 2.5.4 (2.5.6 available)
+  shelf_web_socket 2.0.1 (3.0.0 available)
+  smooth_page_indicator 1.2.1 (2.0.1 available)
+  source_gen 1.5.0 (4.1.2 available)
+  source_helper 1.3.5 (1.3.10 available)
+  sqflite_android 2.4.1 (2.4.2+2 available)
+  sqflite_common 2.5.5 (2.5.6 available)
+  sqflite_common_ffi 2.3.6 (2.4.0+2 available)
+  sqflite_common_ffi_web 1.0.0 (1.1.1 available)
+  sqlite3 2.9.3 (3.1.3 available)
+  synchronized 3.3.1 (3.4.0 available)
+  test_api 0.7.6 (0.7.9 available)
+  timezone 0.10.1 (0.11.0 available)
+  universal_io 2.2.2 (2.3.1 available)
+  url_launcher_android 6.3.20 (6.3.28 available)
+  url_launcher_ios 6.3.4 (6.3.6 available)
+  url_launcher_linux 3.2.1 (3.2.2 available)
+  url_launcher_macos 3.2.3 (3.2.5 available)
+  url_launcher_web 2.4.1 (2.4.2 available)
+  url_launcher_windows 3.1.4 (3.1.5 available)
+  uuid 4.5.1 (4.5.2 available)
+  vm_service 14.3.1 (15.0.2 available)
+  watcher 1.1.4 (1.2.1 available)
+  win32 5.13.0 (5.15.0 available)
+  xml 6.5.0 (6.6.1 available)
+Got dependencies!
+95 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+lib/features/player/widgets/web_playback_player_web.dart:2:8: Error: Dart library 'dart:html' is not available on this platform.
+import 'dart:html' as html;
+       ^
+Context: The unavailable library 'dart:html' is imported through these packages:
+
+    package:music_player => dart:html
+
+Detailed import paths for (some of) the these imports:
+
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:html
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:html
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/screens/onboarding/widgets/onboarding_dot_navigation.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:html
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/screens/onboarding/widgets/onboarding_next_button.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:html
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/screens/onboarding/widgets/onboarding_skip.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:html
+
+lib/features/player/widgets/web_playback_player_web.dart:3:8: Error: Dart library 'dart:js' is not available on this platform.
+import 'dart:js' as js;
+       ^
+Context: The unavailable library 'dart:js' is imported through these packages:
+
+    package:music_player => dart:js
+
+Detailed import paths for (some of) the these imports:
+
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:js
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:js
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/screens/onboarding/widgets/onboarding_dot_navigation.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:js
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/screens/onboarding/widgets/onboarding_next_button.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:js
+    package:music_player/main.dart => package:music_player/app.dart => package:music_player/features/authentication/screens/onboarding/onboarding.dart => package:music_player/features/authentication/screens/onboarding/widgets/onboarding_skip.dart => package:music_player/features/authentication/controllers/onboarding/onboarding_controller.dart => package:music_player/features/authentication/screens/auth_wrapper.dart => package:music_player/common/navigation/screens/main_navigation.dart => package:music_player/features/player/widgets/web_playback_host.dart => package:music_player/features/player/widgets/web_playback_player_factory.dart => package:music_player/features/player/widgets/web_playback_player_web.dart => dart:js
+
+lib/features/player/widgets/web_playback_player_web.dart:65:17: Error: Undefined name 'document'.
+    return html.document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]') != null;
+                ^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:75:25: Error: Method not found: 'ScriptElement'.
+    final script = html.ScriptElement()
+                        ^^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:79:10: Error: Undefined name 'document'.
+    html.document.head?.append(script);
+         ^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:88:12: Error: Undefined name 'context'.
+    if (js.context['onSpotifyWebPlaybackSDKReady'] == null) {
+           ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:89:10: Error: Undefined name 'context'.
+      js.context['onSpotifyWebPlaybackSDKReady'] = js.allowInterop(() async {
+         ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:89:55: Error: Method not found: 'allowInterop'.
+      js.context['onSpotifyWebPlaybackSDKReady'] = js.allowInterop(() async {
+                                                      ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:98:12: Error: Undefined name 'context'.
+    if (js.context.hasProperty('Spotify')) {
+           ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:132:15: Error: Undefined name 'context'.
+      if (!js.context.hasProperty('Spotify')) {
+              ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:144:35: Error: Undefined name 'context'.
+      final spotifyNamespace = js.context['Spotify'];
+                                  ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:148:26: Error: Undefined name 'JsObject'.
+      final options = js.JsObject.jsify({
+                         ^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:157:40: Error: 'JsFunction' isn't a type.
+        if (arg1 != null && arg1 is js.JsFunction) {
+                                       ^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:155:37: Error: Undefined name 'JsFunction'.
+      options['getOAuthToken'] = js.JsFunction.withThis((self, [arg1, arg2]) {
+                                    ^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:163:53: Error: 'JsFunction' isn't a type.
+      _player = js.JsObject(playerConstructor as js.JsFunction, [options]);
+                                                    ^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:163:20: Error: Method not found: 'JsObject'.
+      _player = js.JsObject(playerConstructor as js.JsFunction, [options]);
+                   ^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:188:24: Error: Undefined name 'HttpRequest'.
+            await html.HttpRequest.request(
+                       ^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:205:54: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['ready', js.allowInterop((data) {
+                                                     ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:221:58: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['not_ready', js.allowInterop((data) {
+                                                         ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:225:69: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['player_state_changed', js.allowInterop((state) {
+                                                                    ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:250:32: Error: Undefined name 'context'.
+          final errorJson = js.context['JSON'].callMethod('stringify', [error]);
+                               ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:246:69: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['initialization_error', js.allowInterop((error) {
+                                                                    ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:261:32: Error: Undefined name 'context'.
+          final errorJson = js.context['JSON'].callMethod('stringify', [error]);
+                               ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:257:69: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['authentication_error', js.allowInterop((error) {
+                                                                    ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:274:32: Error: Undefined name 'context'.
+          final errorJson = js.context['JSON'].callMethod('stringify', [error]);
+                               ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:270:62: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['account_error', js.allowInterop((error) {
+                                                             ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:290:32: Error: Undefined name 'context'.
+          final errorJson = js.context['JSON'].callMethod('stringify', [error]);
+                               ^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:284:63: Error: Method not found: 'allowInterop'.
+      _player.callMethod('addListener', ['playback_error', js.allowInterop((error) {
+                                                              ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:401:69: Error: 'JsObject' isn't a type.
+        final promise = _player.callMethod('getCurrentState') as js.JsObject;
+                                                                    ^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:407:44: Error: 'JsObject' isn't a type.
+              final stateObj = state as js.JsObject;
+                                           ^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:405:14: Error: Method not found: 'allowInterop'.
+          js.allowInterop((state) {
+             ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:423:14: Error: Method not found: 'allowInterop'.
+          js.allowInterop((error) {
+             ^^^^^^^^^^^^
+lib/features/player/widgets/web_playback_player_web.dart:442:31: Error: Undefined name 'HttpRequest'.
+      final resp = await html.HttpRequest.request(
+                              ^^^^^^^^^^^
+Unhandled exception:
+FileSystemException(uri=org-dartlang-untranslatable-uri:dart%3Ahtml; message=StandardFileSystem only supports file:* and data:* URIs)
+#0      StandardFileSystem.entityForUri (package:front_end/src/api_prototype/standard_file_system.dart:45)
+#1      asFileUri (package:vm/kernel_front_end.dart:1002)
+#2      writeDepfile (package:vm/kernel_front_end.dart:1165)
+<asynchronous suspension>
+#3      FrontendCompiler.compile (package:frontend_server/frontend_server.dart:729)
+<asynchronous suspension>
+#4      starter (package:frontend_server/starter.dart:102)
+<asynchronous suspension>
+#5      main (file:///Volumes/Work/s/w/ir/x/w/sdk/pkg/frontend_server/bin/frontend_server_starter.dart:13)
+<asynchronous suspension>
+
+Target kernel_snapshot_program failed: Exception
+#0      KernelSnapshot.build (package:flutter_tools/src/build_system/targets/common.dart:282:7)
+<asynchronous suspension>
+#1      _BuildInstance._invokeInternal (package:flutter_tools/src/build_system/build_system.dart:873:9)
+<asynchronous suspension>
+#2      Future.wait.<anonymous closure> (dart:async/future.dart:525:21)
+<asynchronous suspension>
+#3      _BuildInstance.invokeTarget (package:flutter_tools/src/build_system/build_system.dart:811:32)
+<asynchronous suspension>
+#4      FlutterBuildSystem.build (package:flutter_tools/src/build_system/build_system.dart:631:16)
+<asynchronous suspension>
+#5      BundleBuilder.build (package:flutter_tools/src/bundle_builder.dart:84:32)
+<asynchronous suspension>
+#6      BuildBundleCommand.runCommand (package:flutter_tools/src/commands/build_bundle.dart:144:5)
+<asynchronous suspension>
+#7      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1581:27)
+<asynchronous suspension>
+#8      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#9      CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#10     FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:503:9)
+<asynchronous suspension>
+#11     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#12     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:438:5)
+<asynchronous suspension>
+#13     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:98:11)
+<asynchronous suspension>
+#14     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#15     main (package:flutter_tools/executable.dart:101:3)
+<asynchronous suspension>
+
+Failed to build bundle.

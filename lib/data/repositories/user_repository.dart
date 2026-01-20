@@ -41,6 +41,13 @@ class UserRepository {
     return _auth.sendPasswordResetEmail(email: email);
   }
 
+  Future<AuthResponse> updatePasswordDirect({
+    required String email,
+    required String newPassword,
+  }) {
+    return _auth.updatePasswordDirect(email: email, newPassword: newPassword);
+  }
+
   Future<AuthResponse> updateUserProfile({
     String? displayName,
     String? photoUrl,

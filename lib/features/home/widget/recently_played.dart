@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:music_player/utils/constants/colors.dart';
 import 'package:music_player/data/services/music/recent_plays_service.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:music_player/features/home/widget/section_title.dart';
 
 class RecentlyPlayedGrid extends StatefulWidget {
@@ -19,20 +16,15 @@ class _RecentlyPlayedGridState extends State<RecentlyPlayedGrid> {
   List<Map<String, dynamic>> _items = const [];
   bool _loading = true;
   late final SpotifyApiService _spotify;
-  late final SpotifyEmbedService _embed;
   late final WebPlaybackSDKService _web;
-  late final bool _isMobilePlatform;
 
   @override
   void initState() {
     super.initState();
     _spotify = SpotifyApiService.instance;
-    _embed = SpotifyEmbedService.instance;
     _web = WebPlaybackSDKService.instance;
-    _isMobilePlatform = kIsWeb ? false : (Platform.isAndroid || Platform.isIOS);
     _load();
     // Refresh when playback changes (new song played)
-    _embed.addListener(_onPlaybackChange);
     _web.addListener(_onPlaybackChange);
   }
 
@@ -103,7 +95,6 @@ class _RecentlyPlayedGridState extends State<RecentlyPlayedGrid> {
 
   @override
   void dispose() {
-    _embed.removeListener(_onPlaybackChange);
     _web.removeListener(_onPlaybackChange);
     super.dispose();
   }
@@ -135,11 +126,7 @@ class _RecentlyPlayedGridState extends State<RecentlyPlayedGrid> {
             if (trackId == null) return;
             try {
               final track = await _spotify.getTrack(trackId);
-              if (_isMobilePlatform) {
-                _embed.loadTrack(track, playlist: [track]);
-              } else {
-                await _web.playTrack(track, playlist: [track]);
-              }
+              await _web.playTrack(track, playlist: [track]);
               await RecentPlaysService.instance.addRecent(track);
               if (mounted) _load();
             } catch (_) {}

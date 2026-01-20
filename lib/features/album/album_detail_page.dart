@@ -1,11 +1,8 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_player/data/models/spotify/spotify_album.dart';
 import 'package:music_player/data/models/spotify/spotify_track.dart';
 import 'package:music_player/data/models/dto/paging_dto.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
 import 'package:music_player/features/home/widget/mini_player.dart';
 import 'package:music_player/utils/constants/colors.dart';
@@ -225,18 +222,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                     child: ElevatedButton.icon(
                       onPressed: _tracks != null && _tracks!.isNotEmpty
                           ? () {
-                              final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-                              if (isMobile) {
-                                SpotifyEmbedService.instance.loadTrack(
-                                  _tracks!.first,
-                                  playlist: _tracks,
-                                );
-                              } else {
-                                WebPlaybackSDKService.instance.playTrack(
-                                  _tracks!.first,
-                                  playlist: _tracks,
-                                );
-                              }
+                              WebPlaybackSDKService.instance.playTrack(
+                                _tracks!.first,
+                                playlist: _tracks,
+                              );
                             }
                           : null,
                       icon: const Icon(Iconsax.play_circle, size: 24),
@@ -383,18 +372,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-            if (isMobile) {
-              SpotifyEmbedService.instance.loadTrack(
-                track,
-                playlist: _tracks,
-              );
-            } else {
-              WebPlaybackSDKService.instance.playTrack(
-                track,
-                playlist: _tracks,
-              );
-            }
+            WebPlaybackSDKService.instance.playTrack(
+              track,
+              playlist: _tracks,
+            );
           },
           child: Padding(
             padding: const EdgeInsets.all(12.0),

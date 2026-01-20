@@ -1,8 +1,5 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_player/data/models/spotify/spotify_track.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
 import 'package:music_player/features/player/now_playing_page.dart';
 import 'package:music_player/utils/constants/colors.dart';
@@ -190,12 +187,7 @@ class TrackItem extends StatelessWidget {
                 ),
               ),
               onTap: () {
-                final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-                if (isMobile) {
-                  SpotifyEmbedService.instance.addPlayNext(track);
-                } else {
-                  WebPlaybackSDKService.instance.addPlayNext(track);
-                }
+                WebPlaybackSDKService.instance.addPlayNext(track);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -216,12 +208,7 @@ class TrackItem extends StatelessWidget {
                 ),
               ),
               onTap: () {
-                final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-                if (isMobile) {
-                  SpotifyEmbedService.instance.addToQueue(track);
-                } else {
-                  WebPlaybackSDKService.instance.addToQueue(track);
-                }
+                WebPlaybackSDKService.instance.addToQueue(track);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

@@ -5,10 +5,7 @@ import '../../data/services/liked/liked_tracks_service.dart';
 import '../../data/models/user/liked_track.dart';
 import '../../data/services/spotify/spotify_api_service.dart';
 import '../../data/models/spotify/spotify_track.dart';
-import '../../data/services/playback/spotify_embed_service.dart';
 import '../../data/services/playback/web_playback_sdk_service.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import '../../utils/formatters/number_formatter.dart';
 
 /// Liked Songs Page
@@ -23,20 +20,17 @@ class LikedSongsPage extends StatefulWidget {
 class _LikedSongsPageState extends State<LikedSongsPage> {
   final LikedTracksService _likedService = LikedTracksService.instance;
   final SpotifyApiService _spotify = SpotifyApiService.instance;
-  final SpotifyEmbedService _embedService = SpotifyEmbedService.instance;
   final WebPlaybackSDKService _webPlaybackService = WebPlaybackSDKService.instance;
 
   List<LikedTrack> _displayedTracks = [];
   List<SpotifyTrack> _spotifyTracks = [];
   bool _loading = true;
   String _sortBy = 'recent'; // recent, name, artist
-  late bool _isMobilePlatform;
   final Map<String, SpotifyTrack> _trackCache = {};
 
   @override
   void initState() {
     super.initState();
-    _isMobilePlatform = kIsWeb ? false : (Platform.isAndroid || Platform.isIOS);
     _initialLoad();
     _likedService.addListener(_onLikedTracksChanged);
   }
@@ -133,19 +127,11 @@ class _LikedSongsPageState extends State<LikedSongsPage> {
   Future<void> _playAll() async {
     if (_spotifyTracks.isEmpty) return;
 
-    if (_isMobilePlatform) {
-      _embedService.loadTrack(_spotifyTracks.first, playlist: _spotifyTracks);
-    } else {
-      await _webPlaybackService.playTrack(_spotifyTracks.first, playlist: _spotifyTracks);
-    }
+    await _webPlaybackService.playTrack(_spotifyTracks.first, playlist: _spotifyTracks);
   }
 
   Future<void> _playTrack(SpotifyTrack track) async {
-    if (_isMobilePlatform) {
-      _embedService.loadTrack(track, playlist: _spotifyTracks);
-    } else {
-      await _webPlaybackService.playTrack(track, playlist: _spotifyTracks);
-    }
+    await _webPlaybackService.playTrack(track, playlist: _spotifyTracks);
   }
 
   Future<void> _unlikeTrack(String trackId) async {

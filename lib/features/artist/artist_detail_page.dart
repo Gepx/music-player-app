@@ -1,11 +1,8 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_player/data/models/spotify/spotify_artist.dart';
 import 'package:music_player/data/models/spotify/spotify_track.dart';
 import 'package:music_player/data/models/spotify/spotify_album.dart';
 import 'package:music_player/data/services/spotify/spotify_services.dart';
-import 'package:music_player/data/services/playback/spotify_embed_service.dart';
 import 'package:music_player/data/services/playback/web_playback_sdk_service.dart';
 import 'package:music_player/features/album/album_detail_page.dart';
 import 'package:music_player/features/home/widget/mini_player.dart';
@@ -293,18 +290,10 @@ class _ArtistDetailPageState extends State<ArtistDetailPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-            if (isMobile) {
-              SpotifyEmbedService.instance.loadTrack(
-                track,
-                playlist: _topTracks,
-              );
-            } else {
-              WebPlaybackSDKService.instance.playTrack(
-                track,
-                playlist: _topTracks,
-              );
-            }
+            WebPlaybackSDKService.instance.playTrack(
+              track,
+              playlist: _topTracks,
+            );
           },
           child: Padding(
             padding: const EdgeInsets.all(12.0),
